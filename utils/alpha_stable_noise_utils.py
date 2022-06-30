@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-""" Methods for simulating symmetric alpha stable (sas) _archive and
-    estimating parameters.
+"""
+Methods for simulating symmetric alpha stable (sas) processes and
+estimating parameters.
+
+Author: Adam Wunderlich
+Date: June 2022
 """
 
 import numpy as np
@@ -9,28 +13,48 @@ from numpy.random import default_rng
 from spectrum import pmtm
 from scipy import stats
 from scipy.special import gamma
-from scipy import special
 from numpy import pi
 import levy  # available at https://github.com/josemiotto/pylevy
 rng = default_rng()
 
 
 def simulate_sas_noise(signal_length, alpha):
-    """ Simulate symmetric alpha stable _archive with zero skewness (beta),
-    zero location (delta or mu), unit scale (gamma or sigma), under
-    parameterization '0' of Nolan
-    :param signal_length:
-    :param alpha: characteristic exponent
-    :return: X: SAS_quant _archive process
     """
+    Simulate symmetric alpha stable noise with zero skewness (beta),
+    zero location (delta or mu), unit scale (gamma or sigma), under
+    parameterization '0' from (Nolan, "Univariate Stable Distributions", Springer, 2020).
+
+    Parameters
+    ----------
+    signal_length : int
+        length of time series.
+    alpha : float
+        characteristic exponent, accepts values between 0.5 and 2.
+
+    Returns
+    -------
+    X : 1-D numpy array
+        SAS noise process.
+
+    """
+
     X = levy.random(alpha, beta=0, shape = signal_length)
     return X
 
 def estimate_alpha_fast(X):
-    """ Fast estimation of characteristic exponent (alpha)
-        for a sas process using method of (Tsihrintzis and Nikias, 1996)
-    :param X: sas process
-    :return: alpha_est
+    """
+    Fast estimation of characteristic exponent (alpha)
+    for a SAS process using method of (Tsihrintzis and Nikias, 1996)
+
+    Parameters
+    ----------
+    X : 1-D numpy array with length divisible by 128
+        SAS time series.
+
+    Returns
+    -------
+    alpha_est : float
+        estimate of characteristic exponent.
     """
 
     L = 128 # number of segments for time-series
@@ -48,18 +72,22 @@ def estimate_alpha_fast(X):
 
 def estimate_scale_fast(X,alpha_hat):
     """
-    Fast estimation of scale (dispersion) parameter for a SAS_quant process
-    using method of (Tsihrintzis and Nikias, 1996)
+    Fast estimation of scale (dispersion) and location parameters for a
+    SAS process using method of (Tsihrintzis and Nikias, 1996).
 
     Parameters
     ----------
-    X : numpy array vector of SAS_quant time series
-    alpha_hat : estimate of alpha, the characteristic exponent
+    X :  1-D numpy array
+        SAS time series.
+    alpha_hat : float
+        estimate of alpha, the characteristic exponent.
 
     Returns
     -------
-    gamma_hat : estimate of scale parameter
-    delta_hat : estimate of location parameter
+    gamma_hat : float
+        estimate of scale parameter.
+    delta_hat : float
+        estimate of location parameter.
     """
 
     delta_hat = np.median(X)
@@ -72,24 +100,65 @@ def estimate_scale_fast(X,alpha_hat):
 
 
 def estimate_params_ML(X):
-    """ Estimate parameters of sas distribution using ML estimators. Requires alpha>=0.5
-    :param X: sas process
-    :return: alpha_est, gamma_est
     """
+    Estimate parameters of SAS distribution using ML estimators.
+    Requires alpha>=0.5
+
+    Parameters
+    ----------
+    X: 1-D numpy array
+        SAS process.
+
+    Returns
+    -------
+    alpha_est: float
+        estimate of characteristic exponent.
+    gamma_est: float
+        estimate of scale parameter.
+    """
+
     params = levy.fit_levy(X, beta=0.0, mu=0.0)
     alpha_est = params[0].get('1')[0]
     gamma_est = params[0].get('1')[3]
     return alpha_est, gamma_est
 
 def sas_pdf(x, alpha):
+    """
+    Calculate probability density function (PDF) for standard SAS distribution.
+
+    Parameters
+    ----------
+    x: 1-D numpy array
+        values where PDF is evaluated
+    alpha: float
+        characteristic exponent in the range [0,2)
+
+    Returns
+    -------
+    f : 1-D numpy array
+        PDF values
+    """
+
     f = levy.levy(x, alpha, beta=0.0, mu=0.0, sigma=1.0)
     return f
 
 def estimate_psd(X):
-    """ Estimate power spectral density using pmtm method
-    :param: X: time-series
-    :return: Pxx (PSD estimate), w (normalized digital frequencies)
     """
+    Estimate power spectral density using the multitaper method.
+
+    Parameters
+    ----------
+    X: 1-D numpy array
+        time-series.
+
+    Returns
+    -------
+    Pxx : numpy array
+        PSD estimate.
+    w : numpy array
+        normalized digital frequencies.
+    """
+
     Sk, weights, _eigenvalues = pmtm(X, NW=4, k=7, method='eigen')
     Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
     Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd

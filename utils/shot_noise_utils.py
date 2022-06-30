@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-
 '''
-Module for generating generalized shot _archive and estimating the event rate parameter.
-Author: Adam Wunderlich April 2021
+Methods for generating generalized shot noise processes and estimating the
+event rate parameter.
+
+Author: Adam Wunderlich
+Date: June 2022
 '''
 
 
@@ -52,6 +54,16 @@ def simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate, tau_
 def pulse_function(signal_length, pulse_type, theta, tau_d):
     # Outputs: pulse (pulse waveform), t (time),
     #          I1, I2 (first and second integrals of pulse)
+    """
+    Compute pulse functions for generalized shot noise
+    :param signal_length:
+    :param pulse_type:
+    :param theta:
+    :param tau_d:
+    :return: pulse (pulse waveform), t (time values, centered at zero),
+             I1, I2 (first and second integrals of pulse)
+    """
+
     delta_t = theta*tau_d
     m = np.arange(0, signal_length)
     t = (m - signal_length/2)*delta_t  # time values, centered at zero
@@ -174,35 +186,35 @@ def main():
     num_repeats = 500  # number of repeats at each event rate
 
     nu_est = np.zeros((len(event_rate), num_repeats))
+    mu_est = np.zeros((len(event_rate), num_repeats))
+    mu_theory = np.zeros(len(event_rate))
     for k in np.arange(0, len(event_rate)):
         print(f"event rate {k} of {len(event_rate)}")
-        psd_list = []
         acf_list = []
         for n in np.arange(num_repeats):
             X = simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate[k], tau_d, beta, theta)
             nu_est[k, n] = estimate_event_rate(X, pulse_type, amp_distrib, theta, tau_d)
+            mu_est[k,n] = np.mean(X)
             if k == 0 or k == len(event_rate)-1:
-                Pxx, w, wt, Rxx, tau, Pxx_theory, Rxx_theory = estimate_psd_acf(X, pulse_type, event_rate[k], theta, tau_d, beta, amp_distrib)
-                psd_list.append(Pxx)
-                acf_list.append(Rxx)
+               Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type, event_rate[k], theta, tau_d, beta, amp_distrib)
+               acf_list.append(Rxx)
         if k == 0:
             X1 = X
-            median_psd1 = np.median(np.array(psd_list), axis=0)
             median_acf1 = np.median(np.array(acf_list), axis=0)
-            psd1_theory = Pxx_theory
             acf1_theory = Rxx_theory
         elif k == len(event_rate)-1:
             X2 = X
-            median_psd2 = np.median(np.array(psd_list), axis=0) 
             median_acf2 = np.median(np.array(acf_list), axis=0)
-            psd2_theory = Pxx_theory
             acf2_theory = Rxx_theory
+        mu_theory[k] = event_rate[k]*beta
     nus = np.repeat(event_rate, num_repeats)
     median_nu_est = np.median(nu_est, axis=1)
     mean_nu_est = np.mean(nu_est, axis=1)
     iqr_nu_est = stats.iqr(nu_est, axis=1)
+    mu_est_mean = np.mean(mu_est, axis=1)
 
-    
+
+
     fig1, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 7))
     ax1.plot(nus, nu_est.flatten(), 'o', alpha = 0.05, label = 'nu estimates')
     ax1.plot(event_rate, median_nu_est, 'x', color='black', label = 'median estimates')
@@ -229,15 +241,11 @@ def main():
     ax4.set_title(f'example time-series, nu = {event_rate[0]}')
     ax5.plot(X2)
     ax5.set_title(f'example time-series, nu = {event_rate[-1]}')
-    ax6.plot(w, 10*np.log10(median_psd1), color = 'blue', label = f'median PSD, nu={event_rate[0]}')
-    ax6.plot(wt, 10*np.log10(psd1_theory), '--', color = 'black', label = f'theory, nu={event_rate[0]}')
-    ax6.plot(w, 10*np.log10(median_psd2), color = 'green', label = f'median PSD, nu={event_rate[-1]}')
-    ax6.plot(wt, 10*np.log10(psd2_theory), '--', color = 'black', label = f'theory, nu={event_rate[-1]}')
-    ax6.set_ylabel('Power Density (dB)')
-    ax6.set_ylim([-50, 0])
+    ax6.plot(event_rate,mu_est_mean, 'o', color= 'blue', label='estimated')
+    ax6.plot(event_rate,mu_theory, 'x', color='red', label='theory')
+    ax6.set_title('mean comparison')
     ax6.grid()
     ax6.legend()
-    ax6.set_title('normalized PSD comparison')
     ax7.plot(tau, median_acf1, color = 'blue', label = f'median ACF, nu={event_rate[0]}')
     ax7.plot(tau, acf1_theory, '--', color = 'black', label = f'theory, nu={event_rate[0]}')
     ax7.plot(tau, median_acf2, color = 'green', label = f'median ACF, nu={event_rate[-1]}')
@@ -245,35 +253,27 @@ def main():
     ax7.grid()
     ax7.legend()
     ax7.set_title('normalized ACF comparison')
-    plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)   
+    plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)
     plt.show()
 
-    fig3, (ax8, ax9, ax10) = plt.subplots(1, 3, figsize=(11, 4))
+    fig3, (ax8, ax9) = plt.subplots(1, 2, figsize=(11, 4))
     pt_ind  = np.concatenate((signal_length/2 - np.flip(tau),
                               signal_length/2 + tau))
     pt_ind = pt_ind.astype(int)
     for k in range(3):
         pulse, t, I1, I2 = pulse_function(signal_length, pulse_type_list[k],
                                           theta, tau_d)
-        Pxx, w, wt, Rxx, tau, Pxx_theory, Rxx_theory = estimate_psd_acf(X, pulse_type_list[k], event_rate[0], theta, tau_d, beta, amp_distrib)
+        Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type_list[k], event_rate[0], theta, tau_d, beta, amp_distrib)
         ax8.plot(t[pt_ind], pulse[pt_ind])
-        ax9.plot(wt, 10*np.log10(Pxx_theory + 10**-10),
-                 label=pulse_type_list[k])
-        ax10.plot(tau, Rxx_theory)
+        ax9.plot(tau, Rxx_theory)
     ax8.grid()
     ax8.set_title('pulse types')
     ax8.set_xlabel('time')
     ax8.set_ylabel('amplitude')
-    ax9.set_title('normalized theoretical PSD')
-    ax9.set_xlabel('normalized digitial frequency')
-    ax9.set_ylabel('Power Density (dB)')
-    ax9.set_ylim([-60, 0])
+    ax9.set_title('normalized theoretical ACF')
+    ax9.set_xlabel('lag')
+    ax9.set_ylabel('Autocovariance')
     ax9.grid()
-    ax9.legend(loc='upper right')
-    ax10.set_title('normalized theoretical ACF')
-    ax10.set_xlabel('lag')
-    ax10.set_ylabel('Autocovariance')
-    ax10.grid()
     plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)
     plt.show()
 

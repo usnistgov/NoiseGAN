@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-# Module for evaluating _archive datasets
+"""
+Module for evaluating noise datasets.
+
+Authors: Adam Wunderlich, Jack Sklar
+Date: June 2022
+"""
 
 import json
 import h5py

@@ -12,7 +12,7 @@ import gan_evaluation
 from torch.nn import DataParallel
 from torch.utils.data import DataLoader
 from torch.autograd import Variable, grad
-from models import DirectWaveGAN, SFTFGAN
+from models import WaveGAN, STFTGAN
 from data_loading import TargetDataset, get_latent_vectors
 warnings.filterwarnings("ignore")
 torch.backends.cudnn.benchmark = True
@@ -134,13 +134,13 @@ def init_GAN_model(specs, input_length, output_path, rank):
     """
     # 1D Convolutional GAN model trained on complex time-series waveforms
     if specs["dataloader_specs"]["dataset_specs"]["transform_type"] is None:
-        model = DirectWaveGAN
+        model = WaveGAN
         specs["model_specs"]["lower_resolution"] = input_length // specs["model_specs"]["scale_factor"] ** specs["model_specs"]["model_levels"]
     # 2D Convolutional GAN Model trained on spectrograms
     else:
         specs["model_specs"]["receptive_field_type"] = "standard"
 
-        model = SFTFGAN
+        model = STFTGAN
         specs["model_specs"]["lower_resolution"] = [input_dim // specs["model_specs"]["scale_factor"] **
                                                     specs["model_specs"]["model_levels"] for input_dim in input_length]
         specs["model_specs"]["input_dimension_parity"] = ["even" if input_dim % 2 == 0 else "odd" for input_dim in input_length]
@@ -247,17 +247,17 @@ def gan_train(rank, specs=None, output_path=None):
             # Update Discriminator model
             x_real = torch.tensor(x_real, device=device)
             z = get_latent_vectors(len(x_real), 100, specs["latent_type"], device)
-            x_fake = G_net(z)
+            x_gen = G_net(z)
 
             if i == 0 and e == start_epoch:
                 print(f"Real Batch Shape: {x_real.shape}")
                 print(f"Gen Batch Shape: {x_gen.shape}")
             D_real = D_net(x_real)  # Predict validity of real data using discriminator.
-            D_fake = D_net(x_gen.detach())  # Predict validity of generated data using discriminator.
+            D_gen = D_net(x_gen.detach())  # Predict validity of generated data using discriminator.
             D_real = -D_real.mean()
             D_real.backward()
-            D_fake = D_fake.mean()
-            D_fake.backward()
+            D_gen = D_gen.mean()
+            D_gen.backward()
 
             #  Compute Gradient Penalty for Discriminator Loss [Adapted from https://github.com/caogang/wgan-gp/blob/master/gan_toy.py]
             # Gradient pentalty should be computed in scope of .backward() method call
@@ -275,19 +275,19 @@ def gan_train(rank, specs=None, output_path=None):
             gradient_penalty = 10.0 * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
             gradient_penalty.backward()
 
-            report_vars["Loss_D"] = D_fake.mean().item() - D_real.mean().item() + gradient_penalty.item()
+            report_vars["Loss_D"] = D_gen.mean().item() - D_real.mean().item() + gradient_penalty.item()
             report_vars["GP"] = gradient_penalty.item()
 
             optimD.step()  # Update the discriminator.
             report_vars["D(x)"] = D_real.mean().item()
-            report_vars["D(G(z1))"] = D_fake.mean().item()
+            report_vars["D(G(z1))"] = D_gen.mean().item()
 
             # Update Generator model
             if i % specs['D_updates'] == 0:
                 for p in D_net.parameters():  # reset requires_grad
                     p.requires_grad = False  # they are set to False below in netG update
-                D_fake = D_net(x_gen)
-                g_loss = -torch.mean(D_fake)
+                D_gen = D_net(x_gen)
+                g_loss = -torch.mean(D_gen)
                 g_loss.backward()
                 optimG.step()
             # Report KPIs for each training batch to console and to training log file

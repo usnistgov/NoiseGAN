@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Module for generating and estimating parameters for fractional _archive random process models, including
-wide-sense stationary fractional Gaussian _archive (FGN), fractionally differenced white _archive (FDWN), and
-nonstationary fractional Brownian motion (FBM).
+Module for generating and estimating parameters for fractional noise models, including
+fractional Gaussian noise (FGN), fractionally differenced white noise (FDWN),
+and fractional Brownian motion (FBM).
 
-Author: Adam Wunderlich Jan 2021
+Author: Adam Wunderlich
+Date: June 2022
 """
 
 import sys
@@ -21,7 +22,7 @@ from rpy2 import robjects
 # suppress R warnings
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 import logging
-rpy2_logger.setLevel(logging.ERROR) 
+rpy2_logger.setLevel(logging.ERROR)
 
 ri.initr()  # initialize low-level R interface
 arfima = importr('arfima')  # import arfima package from R
@@ -30,7 +31,7 @@ rng = default_rng()  # random number generator object
 
 def simulate_FGN(signal_length, H, sigma_sq=1):
     """
-    Simulate fractional Gaussian _archive (FGN): Hurst exponent is in the range (0,1) (H < 0.5 yields
+    Simulate fractional Gaussian noise (FGN): Hurst exponent is in the range (0,1) (H < 0.5 yields
     anti-persistent (short-memory) FGN,  H=0.5 corresponds to WGN, H > 0.5 yields persistent (long-memory) FGN).
 
     References:
@@ -42,7 +43,7 @@ def simulate_FGN(signal_length, H, sigma_sq=1):
     :param signal_length:
     :param H: Hurst exponent
     :param sigma_sq: variance of FGN
-    :return: Gh1, Gh2 (two independent fractional Gaussian _archive realizations)
+    :return: Gh1, Gh2 (two independent fractional Gaussian noise realizations)
     """
     M = signal_length - 1  # fft length is 2M
     k1 = np.arange(signal_length)
@@ -54,14 +55,14 @@ def simulate_FGN(signal_length, H, sigma_sq=1):
     x = rng.normal(0, 1, 2 * M) + 1j * rng.normal(0, 1, 2 * M)
     x_tilde = np.sqrt(s_tilde / (2 * M)) * x
     y = np.fft.fft(x_tilde)
-    # fractional Gaussian _archive realizations
+    # fractional Gaussian noise realizations
     Gh1, Gh2 = np.real(y[0: signal_length]), np.imag(y[0: signal_length])
     return Gh1, Gh2
 
 
 def FGNacorr(H, k, sigma_sq=1):
     """
-    Autocorrelation function for fractional Gaussian _archive
+    Autocorrelation function for fractional Gaussian noise
     :param H: Huerst exponent
     :param k:
     :param sigma_sq: variance of FGN
@@ -73,7 +74,7 @@ def FGNacorr(H, k, sigma_sq=1):
 
 def FGN_to_FBM(FGN_time_series):
     """
-    Convert fractional Gaussian _archive to a fractional Brownian motion process
+    Convert fractional Gaussian noise to a fractional Brownian motion process
     :param FGN_time_series:
     :return:
     """
@@ -84,7 +85,7 @@ def FGN_to_FBM(FGN_time_series):
 
 def estimate_Hurst_exponent(x, process_type='FGN'):
     """
-    Estimate Hurst exponent for fractional Gaussian _archive or fractional Brownian motion.
+    Estimate Hurst exponent for fractional Gaussian noise or fractional Brownian motion.
 
     Implements the discrete variations estimator (Istas & Lang, 1997), (Coeurjolly, 2001), (Courjolly & Porcu,2017)
     using the 2nd-order difference. This code is based on estCFBM.R by (Coeurjolly,2017) and the Matlab function
@@ -134,11 +135,11 @@ def estimate_Hurst_exponent(x, process_type='FGN'):
 
 @contextmanager
 def suppress_stdout():
-    # function to suppress unwanted console output 
+    # function to suppress unwanted console output
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         sys.stdout = devnull
-        try:  
+        try:
             yield
         finally:
             sys.stdout = old_stdout
@@ -148,7 +149,7 @@ def simulate_FDWN(signal_length, dfrac):
     """
     Simulate FDWN time-series
     :param signal_length:
-    :param dfrac: fractional _archive parameter in the range (-.5,.5)
+    :param dfrac: fractional noise parameter in the range (-.5,.5)
     :return: output: FDWN_time_series
     """
     arfima_sim = robjects.r['arfima.sim']
@@ -159,9 +160,9 @@ def simulate_FDWN(signal_length, dfrac):
 
 def estimate_FD_param(x):
     """
-    Fit fractionally-differenced white _archive model
+    Fit fractionally-differenced white noise model
     :param x: real-valued time-series
-    :return: dfrac (estimated fractional _archive parameter),
+    :return: dfrac (estimated fractional noise parameter),
              dfrac_std (estimated standard error on dfrac)
     """
     x = robjects.vectors.FloatSexpVector(x)
@@ -177,19 +178,19 @@ def estimate_FD_param(x):
 def main():
     # testing and examples
     example = 'FDWN' # 'FGN' or 'FDWN'
-            
-    if example == 'FGN':     
+
+    if example == 'FGN':
         signal_length = 2048
         Hvec = np.arange(.05, 1, .05) # vector of true Hurst exponent values
         Nsim = len(Hvec)
         Hest = np.zeros(Nsim)
-        for k,H_true in enumerate(Hvec): 
+        for k,H_true in enumerate(Hvec):
             if k%10 == 0:
                 print('run {0} of {1}'.format(k,Nsim))
             Gh1, Gh2 = simulate_FGN(signal_length, H_true)
             Hest1 = estimate_Hurst_exponent(Gh1, process_type = 'FGN')
-            Hest2 = estimate_Hurst_exponent(Gh2, process_type = 'FGN')    
-            Hest[k] = (Hest1 + Hest2)/2  # average Hest estimates for two independent realizations  
+            Hest2 = estimate_Hurst_exponent(Gh2, process_type = 'FGN')
+            Hest[k] = (Hest1 + Hest2)/2  # average Hest estimates for two independent realizations
         fig,ax = plt.subplots(1,1)
         ax.plot(Hvec, Hest, 'o', label = 'H estimates')
         ax.set_xlim([0,1])
@@ -200,10 +201,10 @@ def main():
         ax.plot(Hvec,Hvec,'r', label = 'truth')
         ax.legend()
         ax.grid()
-        
+
         # plot specific time-series examples
         H_true = 0.25
-        FGN_time_series1, FGN_time_series2 = simulate_FGN(signal_length, H_true) 
+        FGN_time_series1, FGN_time_series2 = simulate_FGN(signal_length, H_true)
         FBM_time_series1 = FGN_to_FBM(FGN_time_series1)
         FBM_time_series2 = FGN_to_FBM(FGN_time_series2)
         fig, (ax1, ax2) = plt.subplots(2, 1)
@@ -215,7 +216,7 @@ def main():
         ax1.set_xlabel('time index')
         ax1.set_ylabel('amplitude')
         ax1.legend()
-        
+
         ax2.plot(FBM_time_series1, color='blue', label = 'realization 1')
         ax2.plot(FBM_time_series2, color='red', label = 'realization 1')
         ax2.grid()
@@ -223,20 +224,20 @@ def main():
         ax2.set_title(title2)
         ax2.legend()
         ax2.set_xlabel('time index')
-        ax2.set_ylabel('amplitude')        
+        ax2.set_ylabel('amplitude')
         plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)
-        
+
     elif example == 'FDWN':
         signal_length = 2048
         df_vec = np.arange(-.45, .5, .05) # vector of true dfrac parameters
         Nsim = len(df_vec)
         dfrac = np.zeros(Nsim)
         dfrac_std = np.zeros(Nsim)
-        for k, df_true in enumerate(df_vec): 
+        for k, df_true in enumerate(df_vec):
             if k % 10 == 0:
                 print('run {0} of {1}'.format(k, Nsim))
             FDWN_time_series = np.array(simulate_FDWN(signal_length, df_true))
-            dfrac[k], dfrac_std[k] = estimate_FD_param(FDWN_time_series)          
+            dfrac[k], dfrac_std[k] = estimate_FD_param(FDWN_time_series)
         fig, ax = plt.subplots(1,1)
         ax.plot(df_vec,dfrac, 'o', label = 'dfrac estimates')
         ax.set_xlim([-.5,.5])
@@ -247,14 +248,14 @@ def main():
         ax.plot(df_vec,df_vec,'r', label = 'truth')
         ax.legend()
         ax.grid()
-            
+
         # plot specific time-series examples
         df_true = -0.25
         FDWN_time_series1 = simulate_FDWN(signal_length, df_true)
         FDWN_time_series2 = simulate_FDWN(signal_length, df_true)
         intFDWN_time_series1 = FGN_to_FBM(FDWN_time_series1) # integrate
         intFDWN_time_series2 = FGN_to_FBM(FDWN_time_series2) # integrate
-        
+
         fig1, (ax1, ax2) = plt.subplots(2, 1)
         ax1.plot(FDWN_time_series1, color='blue', label = 'realization 1')
         ax1.plot(FDWN_time_series2, color='red', label = 'realization 2')
@@ -264,7 +265,7 @@ def main():
         ax1.set_xlabel('time index')
         ax1.set_ylabel('amplitude')
         ax1.legend()
-        
+
         ax2.plot(intFDWN_time_series1, color='blue', label = 'realization 1')
         ax2.plot(intFDWN_time_series2, color='red', label = 'realization 2')
         ax2.grid()
@@ -272,8 +273,8 @@ def main():
         ax2.set_title(title2)
         ax2.legend()
         ax2.set_xlabel('time index')
-        ax2.set_ylabel('amplitude')        
-        plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)            
-           
+        ax2.set_ylabel('amplitude')
+        plt.tight_layout(pad=0.5, w_pad=2, h_pad=2)
+
 if __name__ == "__main__":
     main()

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-# Module for creating noise datasets
+"""
+Module for creating noise datasets.
+
+Author: Adam Wunderlich
+Date: June 2022
+"""
 
 import os
 import json
@@ -155,7 +160,7 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
     dataset = np.zeros((num_samples, signal_length))
     for k, p in enumerate(impulse_probs):
         dataset[k, :] = bg.simulate_bg_noise(signal_length, p, sig0, sig1)
-        
+
     param_values = np.reshape(impulse_probs, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
     scale_coeffs = {}
@@ -168,13 +173,13 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
 
 def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
     """
-    Create dataset of symmetric alpha-stable (SAS_quant) noise
+    Create dataset of symmetric alpha-stable (SAS) noise
     :param num_samples: number of time-series in dataset
     :param signal_length: time-series length
-    :param param_distrib: parameter distribution string 
+    :param param_distrib: parameter distribution string
                           (options: 'fixed', 'uniform', 'multimodal')
     :param alpha: characteristic exponent
-    :return: Outputs: dataset (array of dimension (num_samples, signal_length+1), 
+    :return: Outputs: dataset (array of dimension (num_samples, signal_length+1),
                       where the first column contains parameter values)
              scale_coeffs (dict of scale coefficients)
     """
@@ -200,7 +205,7 @@ def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
     dataset = np.zeros((num_samples, signal_length))
     for k, a in enumerate(alphas):
         dataset[k, :] = asn.simulate_sas_noise(signal_length, a)
-        
+
     param_values = np.reshape(alphas, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
     scale_coeffs = {}
@@ -285,11 +290,11 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
     :param num_samples: number of time-series in training dataset
     :param signal_length: time-series length
     :param noise_type: Noise distribution type: 'bandpass', 'shot', 'BG',
-                        'SAS_quant', 'FGN','FBM', or 'FDWN'
+                        'SAS', 'FGN','FBM', or 'FDWN'
     :param param_distrib: parameter distribution string
     :param param_value: Hurst index for fractional noise,
                         event rate for generalized shot noise,
-                        impulse_prob for BG noise, alpha for SAS_quant noise
+                        impulse_prob for BG noise, alpha for SAS noise
     :param num_bands: number of bands for bandpass noise
     :param band_index: index of band for single band of BP noise
     :param pulse_type: pulse type for shot noise
@@ -315,13 +320,13 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
         test_dataset, _ = create_bg_dataset(num_samples // 4, signal_length, param_distrib, impulse_prob=param_value)
         dir_path = data_dir + rf'{noise_type}_{param_distrib}'
         if param_distrib == 'fixed':
-            dir_path = dir_path + '_IP' + str(int(param_value*100))   
-    elif noise_type == 'SAS_quant':
+            dir_path = dir_path + '_IP' + str(int(param_value*100))
+    elif noise_type == 'SAS':
         train_dataset, scale_coeffs = create_sas_dataset(num_samples, signal_length, param_distrib, alpha=param_value)
         test_dataset, _ = create_sas_dataset(num_samples // 4, signal_length, param_distrib, alpha=param_value)
         dir_path = data_dir + rf'{noise_type}_{param_distrib}'
         if param_distrib == 'fixed':
-            dir_path = dir_path + '_alpha' + str(int(param_value*100))  
+            dir_path = dir_path + '_alpha' + str(int(param_value*100))
     else:  # fractional noise type
         train_dataset, scale_coeffs = create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, param_value)
         test_dataset, _ = create_fn_dataset(num_samples // 4, signal_length, noise_type, param_distrib, param_value)
@@ -368,12 +373,12 @@ class MyEncoder(json.JSONEncoder):
 
 def main():
     # make datasets
-    data_dir = r'../Datasets/'
+    data_dir = r'./Datasets/'
     num_samples = 16384  # number of samples in training set. Test set has 1/4
     signal_length = 4096
     num_bands = 8  # number of bands for bandpass noise
 
-    for noise_type in ['FDWN']:  # 'FDWN', 'FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS_quant'
+    for noise_type in ['FGN']:  # 'FDWN', 'FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS'
         if noise_type == 'bandpass':
             for param_distrib in ['single']:
                 if param_distrib == 'single':
@@ -407,16 +412,16 @@ def main():
                  else:
                     save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib,
                                  pulse_type=pulse_type, amp_distrib=amp_distrib)
-        elif noise_type == 'SAS_quant':
+        elif noise_type == 'SAS':
              for param_distrib in ['fixed']:  # 'uniform', 'multimodal'
                  if param_distrib == 'fixed':
                             for count, param_value in enumerate(np.linspace(.5, 1.5, 11)):
-                                print(f'saving  SAS_quant noise dataset {count+1} of 11')
+                                print(f'saving  SAS noise dataset {count+1} of 11')
                                 save_dataset(data_dir, num_samples,
                                              signal_length, noise_type,
                                              param_distrib, param_value)
                  else:
-                    save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib)            
+                    save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib)
         elif noise_type == 'FGN' or 'FDWN' or 'FBM':
             for param_distrib in ['fixed']:  # 'uniform_low', 'uniform_high',  'multimodal_low', 'multimodal_high',
                 if param_distrib == 'fixed':

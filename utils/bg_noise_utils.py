@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-''' Methods for generating Bernoulli-Gaussian _archive processes and
-    estimating parameters.
+'''
+Methods for generating Bernoulli-Gaussian noise processes and estimating parameters.
+
+Author: Adam Wunderlich
+Date: June 2022
 '''
 
 import numpy as np
@@ -12,30 +15,103 @@ from scipy import stats
 rng = default_rng()
 
 def simulate_bg_noise(signal_length, p, sig_w, sig_i):
+    """
+    Simulate Bernoulli-Gaussian (BG) process.
+
+    Parameters
+    ----------
+    signal_length : int
+        length of time series.
+    p : float
+        impulse probability.
+    sig_w : float
+        scale parameter for background thermal noise component.
+    sig_i : float
+        scale parameter for impulsive noise component.
+
+    Returns
+    -------
+    X : 1-D numpy array
+        BG time series.
+
+    """
     n_w = rng.standard_normal(signal_length)*sig_w
     n_i = rng.binomial(1,p,signal_length)*rng.standard_normal(signal_length)*sig_i
     X = n_w+n_i
     return X
 
 def estimate_bg_parameters(X):
+    """
+    Estimate parameters for Bernoulli-Gaussian (BG) noise model .
+
+    Parameters
+    ----------
+    X : 1-D numpy array
+        BG time series.
+
+    Returns
+    -------
+    p : float
+        estimated impulse probability.
+    sig_w : float
+        estimated scale parameter for background thermal noise component.
+    sig_i : float
+        estimated scale parameter for impulsive noise component.
+
+    """
     if X.ndim == 1:
         X = X.reshape(-1,1)
     gm = GaussianMixture(n_components=2, tol = 1e-6, max_iter = 500,
                          n_init = 1, means_init = np.zeros((2,1)),
                          random_state=0).fit(X)
-    sig0 = np.min(np.sqrt(gm.covariances_))
-    sig1 = np.max(np.sqrt(gm.covariances_))
+    sig_w = np.min(np.sqrt(gm.covariances_))
+    sig_i = np.max(np.sqrt(gm.covariances_))
     ind = np.argmax(np.sqrt(gm.covariances_))
     p = gm.weights_[ind]
-    return p, sig0, sig1
+    return p, sig_w, sig_i
 
 def bg_pdf(x, p, sig_w, sig_i):
-    # return PDF values for the BG mixture distribution
+    """
+    Compute probability density function (PDF) values for the BG mixture distribution
+
+    Parameters
+    ----------
+    x : 1-D numpy array
+        Values at which to evaluate PDF.
+    p : float
+        Impulse probability.
+    sig_w : float
+        Scale parameter for background thermal noise component.
+    sig_i : float
+        Scale parameter for impulsive noise component.
+
+    Returns
+    -------
+    f_BG : numpy array
+        PDF values.
+
+    """
     f_BG = ((1-p)*stats.norm.pdf(x, loc=0, scale=sig_w)
             + p*stats.norm.pdf(x, loc=0, scale=np.sqrt(sig_w**2 + sig_i**2)))
     return f_BG
 
 def estimate_psd(X):
+    """
+    Estimate one-sided power spectral density function using multitaper method.
+
+    Parameters
+    ----------
+    X : 1-D numpy array
+        time series.
+
+    Returns
+    -------
+    Pxx : numpy array
+        PSD values.
+    w : numpy array
+        Array of normalized digital frequencies.
+
+    """
     Sk, weights, _eigenvalues = pmtm(X, NW=4, k=7, method='eigen')
     Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
     Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd

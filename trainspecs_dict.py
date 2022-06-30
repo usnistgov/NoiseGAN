@@ -1,7 +1,7 @@
 specs_dict = {'save_model': True,
               'eval_model': True,
               "latent_type": "uniform",  # "gaussian", "uniform
-              "num_gpus": 8,
+              "num_gpus": 4,
               "start_gpu": 0,
               "checkpoint": None,
               'D_updates': 1,  # 1, 5
@@ -24,11 +24,11 @@ specs_dict = {'save_model': True,
                     'dataset_specs': {
                         'data_scaler': None,  # "feature_standard"
                         "pad_signal": True,
-                        'data_set': "BGN_quant/BG_fixed_IP10",
+                        'data_set': "FGN_fixed_H50",
                         'num_samples': 0,
                         'transform_type': "stft",
-                        'nperseg': 128,
-                        'noverlap': 0.96875,  # 0.5, 0.75 0.875 0.9375 0.96875, 0.9921875
+                        'nperseg': 64,
+                        'noverlap': 0.5,  # 0.5, 0.75 0.875 0.9375 0.96875, 0.9921875
                         'fft_shift': False,
                         'data_rep': "IQ",  # "IQ",  "log_mag_IF, "log_mag_IQ"
                         'quantize': "channel"
