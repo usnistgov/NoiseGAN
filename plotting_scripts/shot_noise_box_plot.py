@@ -58,6 +58,7 @@ metrics_df.to_csv(plot_path + "shotnoise_results.csv", index=False)
 
 #%%
 
+c1, c2, c3, c4 = "#0072B2", "#009E73", "#D55E00", "#CC79A7"
 noise_types = ["SNOE", "SNLE", "SNGE"]
 noise_titles = ["One-sided Exponential Pulse Type", "Linear Exponential Pulse Type", "Gaussian Pulse Type"]
 noise_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
@@ -73,10 +74,8 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     target_range = [pos - 0.2 for pos in box_range]
     wave_range = box_range
     stft_range = [pos + 0.2 for pos in box_range]
-    c1, c2, c3 = "red", "blue", "green"
-
-    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color="blue", linestyle="-", alpha=0.7, label="STFT-GAN")
-    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="o", color="red", linestyle="-", alpha=0.7, label="WaveGAN")
+    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c2, linestyle="-", alpha=0.85, label="STFT-GAN")
+    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c1, linestyle="-", alpha=0.85, label="WaveGAN")
     axs[0, i].set_ylim((0, 2.3))
     axs[0, i].set_title(noise_title, fontsize=12)
     axs[0, i].xaxis.set_ticks_position('none')
@@ -97,13 +96,13 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
         wave_param_dists = json.loads(f.read())
         wave_dists.append(wave_param_dists["generated"])
     box1 = axs[1, i].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
-                       boxprops=dict(facecolor=c1, color=c1, alpha=0.7), medianprops=dict(color='black'),
+                       boxprops=dict(facecolor=c1, color=c1, alpha=0.85), medianprops=dict(color='black'),
                        capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box2 = axs[1, i].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                       boxprops=dict(facecolor=c2, color=c2, alpha=0.7), medianprops=dict(color='black'),
+                       boxprops=dict(facecolor=c2, color=c2, alpha=0.85), medianprops=dict(color='black'),
                        capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box3 = axs[1, i].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                       boxprops=dict(facecolor=c3, color=c3, alpha=0.7), medianprops=dict(color='black'),
+                       boxprops=dict(facecolor=c3, color=c3, alpha=0.85), medianprops=dict(color='black'),
                        capprops=dict(color="black"), whiskerprops=dict(color="black"))
 
     axs[1, 0].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'], loc='upper left', fontsize=12)

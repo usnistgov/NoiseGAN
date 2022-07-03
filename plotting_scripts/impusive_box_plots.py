@@ -55,6 +55,7 @@ print(metrics_df["model_type"].value_counts())
 
 #%%
 
+c1, c2, c3, c4 = "#0072B2", "#009E73", "#D55E00", "#CC79A7"
 fig, axs = plt.subplots(nrows=3, ncols=2, sharex="col")
 fig.set_figheight(8)
 fig.set_figwidth(8)
@@ -68,10 +69,9 @@ for i, suffix in enumerate(["", "_quantized"]):
     box_range = list(range(len(stft_metrics_df)))
     target_range = [pos - 0.2 for pos in box_range]
     stft_range = [pos + 0.2 for pos in box_range]
-    c1, c2, c3 = "red", "blue", "green"
 
-    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="o", color="red", linestyle="-", alpha=0.7, label="WaveGAN")
-    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color="blue", linestyle="-", alpha=0.7, label="STFT-GAN")
+    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c1, linestyle="-", alpha=0.85, label="WaveGAN")
+    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c2, linestyle="-", alpha=0.85, label="STFT-GAN")
     axs[0, i].set_ylim((0, 0.4))
     axs[0, 0].set_ylabel(r"$d_g$", fontsize=12)
     axs[0, i].xaxis.set_ticks_position('none')
@@ -89,13 +89,13 @@ for i, suffix in enumerate(["", "_quantized"]):
         wave_param_dists = json.loads(f.read())
         wave_dists.append(wave_param_dists["generated"])
     box1 = axs[1, i].boxplot(wave_dists, showfliers=False, positions=box_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c1, color=c1, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c1, color=c1, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box2 = axs[1, i].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c2, color=c2, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c2, color=c2, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box3 = axs[1, i].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c3, color=c3, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c3, color=c3, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     axs[1, 0].set_ylabel(r"Estimated $p$", fontsize=12)
     axs[1, i].grid(True)
@@ -113,13 +113,13 @@ for i, suffix in enumerate(["", "_quantized"]):
         wave_param_dists = json.loads(f.read())
         wave_dists.append(wave_param_dists["generated"])
     box1 = axs[2, i].boxplot(wave_dists, showfliers=False, positions=box_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c1, color=c1, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c1, color=c1, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box2 = axs[2, i].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c2, color=c2, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c2, color=c2, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     box3 = axs[2, i].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c3, color=c3, alpha=0.7), medianprops=dict(color='black'),
+                          boxprops=dict(facecolor=c3, color=c3, alpha=0.85), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     axs[2, 1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
                   loc='upper right', fontsize=12)
@@ -151,10 +151,8 @@ wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == f"wavegan_p
 box_range = list(range(len(stft_metrics_df)))
 target_range = [pos - 0.2 for pos in box_range]
 stft_range = [pos + 0.2 for pos in box_range]
-c1, c2, c3 = "red", "blue", "green"
-
-axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="o", color="red", linestyle="-", alpha=0.7, label="WaveGAN")
-axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color="blue", linestyle="-", alpha=0.7, label="STFT-GAN")
+axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c1, linestyle="-", alpha=0.85, label="WaveGAN")
+axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c2, linestyle="-", alpha=0.85, label="STFT-GAN")
 axs[0].set_ylim((0, 0.8))
 axs[0].set_ylabel(r"$d_g$", fontsize=12)
 axs[0].grid(True)
@@ -174,13 +172,13 @@ for _, wave_run in wave_metrics_df.iterrows():
 stft_dists = np.array(stft_dists)
 stft_dists = [row[~np.isnan(row)] for row in stft_dists]
 box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=box_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c1, color=c1, alpha=0.7), medianprops=dict(color='black'),
+                      boxprops=dict(facecolor=c1, color=c1, alpha=0.85), medianprops=dict(color='black'),
                       capprops=dict(color="black"), whiskerprops=dict(color="black"))
 box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c2, color=c2, alpha=0.7), medianprops=dict(color='black'),
+                      boxprops=dict(facecolor=c2, color=c2, alpha=0.85), medianprops=dict(color='black'),
                       capprops=dict(color="black"), whiskerprops=dict(color="black"))
 box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c3, color=c3, alpha=0.7), medianprops=dict(color='black'),
+                      boxprops=dict(facecolor=c3, color=c3, alpha=0.85), medianprops=dict(color='black'),
                       capprops=dict(color="black"), whiskerprops=dict(color="black"))
 axs[1].set_ylabel(r"Estimated $\alpha$", fontsize=12)
 axs[1].grid(True)
@@ -200,13 +198,13 @@ for _, wave_run in wave_metrics_df.iterrows():
 stft_dists = np.array(stft_dists)
 stft_dists = [row[~np.isnan(row)] for row in stft_dists]
 box1 = axs[2].boxplot(wave_dists, showfliers=False, positions=box_range, widths=0.2, notch=True, patch_artist=True,
-                         boxprops=dict(facecolor=c1, color=c1, alpha=0.7), medianprops=dict(color='black'),
+                         boxprops=dict(facecolor=c1, color=c1, alpha=0.85), medianprops=dict(color='black'),
                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
 box2 = axs[2].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                         boxprops=dict(facecolor=c2, color=c2, alpha=0.7), medianprops=dict(color='black'),
+                         boxprops=dict(facecolor=c2, color=c2, alpha=0.85), medianprops=dict(color='black'),
                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
 box3 = axs[2].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                         boxprops=dict(facecolor=c3, color=c3, alpha=0.7), medianprops=dict(color='black'),
+                         boxprops=dict(facecolor=c3, color=c3, alpha=0.85), medianprops=dict(color='black'),
                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
 axs[2].set_ylabel(r"Estimated $\gamma$", fontsize=12)
 axs[2].grid(True)
@@ -216,5 +214,5 @@ axs[2].set_xticklabels(noise_range, fontsize=10, rotation=45)
 axs[2].set_xlabel(r"True $\alpha$", fontsize=12)
 plt.tight_layout()
 plt.subplots_adjust(hspace=0.05, wspace=0.1)
-plt.savefig(f'{plot_path}SAS_combined_plot_2.png', dpi=600)
+plt.savefig(f'{plot_path}SAS_combined_plot.png', dpi=600)
 plt.show()

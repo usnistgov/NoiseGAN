@@ -207,7 +207,6 @@ def load_generated(G, n_samples, class_labels, dataset, batch_size, device):
     while num_generated_samples < n_samples:
         remaining_samples = n_samples - num_generated_samples
         curr_num_samples = batch_size if remaining_samples >= batch_size else remaining_samples
-        batch_labels = class_labels[i * batch_size: i * batch_size + curr_num_samples]
         z = data_loading.get_latent_vectors(curr_num_samples, 100, False, device)
         fake = G(z)
         fake = fake.detach().cpu()

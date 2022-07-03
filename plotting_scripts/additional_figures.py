@@ -16,6 +16,9 @@ import utils.bg_noise_utils as bg
 import utils.shot_noise_utils as sn
 import utils.fractional_noise_utils as fn
 import utils.alpha_stable_noise_utils as asn
+plt.style.use('seaborn-colorblind')
+
+c1, c2, c3, c4 = "#0072B2", "#009E73", "#D55E00", "#CC79A7"
 
 
 def get_median_psd(path):
@@ -53,9 +56,9 @@ def waveform_comparison(gen_data, wave_gen_data, targ_data, output_path, common_
         wave_gen_waveform = wave_gen_data[i, :]
         gen_waveform = gen_data[i, :]
         targ_waveform = targ_data[i, :]
-        axs[i, 0].plot(range(len(targ_waveform)), targ_waveform, alpha=1, linewidth=1, color="green")
-        axs[i, 1].plot(range(len(wave_gen_waveform)), wave_gen_waveform, alpha=1, linewidth=1, color="red")
-        axs[i, 2].plot(range(len(gen_waveform)), gen_waveform, alpha=1, linewidth=1, color="blue")
+        axs[i, 0].plot(range(len(targ_waveform)), targ_waveform, alpha=1, linewidth=1, color=c1)
+        axs[i, 1].plot(range(len(wave_gen_waveform)), wave_gen_waveform, alpha=1, linewidth=1, color=c2)
+        axs[i, 2].plot(range(len(gen_waveform)), gen_waveform, alpha=1, linewidth=1, color=c3)
         for j in range(3):
             axs[i, j].margins(x=0, y=0.05)
             axs[2, j].set_xlabel("Time")
@@ -75,6 +78,9 @@ def waveform_comparison(gen_data, wave_gen_data, targ_data, output_path, common_
         plt.subplots_adjust(hspace=0.15, wspace=0.2)
     plt.savefig(output_path, dpi=300)
     plt.show()
+
+
+
 
 #%%
 
@@ -109,10 +115,10 @@ band_nums = [0, 1, 2, 3, 4, 5, 6, 7]
 model_metrics_df = metrics_df[metrics_df["noise_type"] == "BPWN"]
 stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
 wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan_ps"]
-plt.plot(band_nums, stft_metrics_df["geodesic_psd_dist"], marker="o", color="blue",
-         linestyle="-", alpha=0.7, label="STFTGAN")
-plt.plot(band_nums, wave_metrics_df["geodesic_psd_dist"], marker="o", color="red",
-         linestyle="-", alpha=0.7, label="WaveGAN")
+plt.plot(band_nums, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c3,
+         linestyle="-", alpha=0.85, label="STFTGAN")
+plt.plot(band_nums, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c2,
+         linestyle="-", alpha=0.85, label="WaveGAN")
 plt.ylabel(r"$d_g$", fontsize=12)
 plt.tick_params(axis='both', which='major', labelsize=10)
 plt.xlabel("Band Number", fontsize=12)
@@ -178,28 +184,31 @@ frac_noise_label = ["FBM", "FGN", "FDWN"]
 frac_noise_2 = ["FBM/FBM_fixed_H80/", "FGN/FGN_fixed_H80/", "FDWN/FDWN_fixed_H80/"]
 
 # BPWN
-fig = plt.figure(figsize=(8,5))
-for path in bpwn_paths:
-    targ_median_psd = get_median_psd(path)
-    w = np.linspace(0, 0.5, len(targ_median_psd))
-    plt.plot(w, 10 * np.log10(targ_median_psd), alpha=0.75, linewidth=3)
-plt.title(f"")
-plt.ylabel('Power Density (dB)', fontsize=16)
-plt.xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=16)
-plt.grid()
-plt.margins(x=0)
-plt.ylim((-70, -10))
-plt.xticks(fontsize=14)
-plt.yticks(fontsize=14)
-plt.savefig(f"./paper_plots/BPWN_target_psd_comparison.png", dpi=300)
-plt.show()
+with plt.style.context(("seaborn-colorblind")):
+    fig = plt.figure(figsize=(8,5))
+    for path in bpwn_paths:
+        targ_median_psd = get_median_psd(path)
+        w = np.linspace(0, 0.5, len(targ_median_psd))
+        plt.plot(w, 10 * np.log10(targ_median_psd), alpha=0.85, linewidth=3)
+    plt.title(f"")
+    plt.ylabel('Power Density (dB)', fontsize=16)
+    plt.xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=16)
+    plt.grid()
+    plt.margins(x=0)
+    plt.ylim((-70, -10))
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.savefig(f"./paper_plots/BPWN_target_psd_comparison.png", dpi=300)
+    plt.show()
 
 # Shot Noise
+colors = [c1, c2, c3]
+linestyles = ['-', '--', '-.']
 fig = plt.figure(figsize=(8,5))
-for path, label in zip(snot_noise_1, shot_noise_lables):
+for path, label, color, linestyle in zip(snot_noise_1, shot_noise_lables, colors, linestyles):
     targ_median_psd = get_median_psd(path)
     w = np.linspace(0, 0.5, len(targ_median_psd))
-    plt.plot(w, 10 * np.log10(targ_median_psd), alpha=0.75, linewidth=3, label=label)
+    plt.plot(w, 10 * np.log10(targ_median_psd), alpha=0.85, color=color, linestyle=linestyle, linewidth=3, label=label)
 plt.ylabel('Power Density (dB)', fontsize=16)
 plt.xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=16)
 plt.grid()
@@ -213,10 +222,10 @@ plt.show()
 
 # Power Law Noise
 fig, axs = plt.subplots(2, figsize=(8, 8), sharex=True, gridspec_kw={'hspace': 0.1})
-for path, label in zip(frac_noise_1, frac_noise_label):
+for path, label, color, linestyle in zip(frac_noise_1, frac_noise_label, colors, linestyles):
     targ_median_psd = get_median_psd(path)
     w = np.linspace(0, 0.5, len(targ_median_psd))
-    axs[0].plot(w, 10 * np.log10(targ_median_psd), alpha=0.75, label=label, linewidth=3)
+    axs[0].plot(w, 10 * np.log10(targ_median_psd), alpha=0.85, color=color, linestyle=linestyle, label=label, linewidth=3)
 axs[0].set_ylabel('Power Density (dB)', fontsize=16)
 axs[0].tick_params(axis='both', which='major', labelsize=14)
 axs[0].grid()
@@ -224,10 +233,10 @@ axs[0].margins(x=0)
 axs[0].legend(fontsize=14)
 plt.xscale("log")
 
-for path, label in zip(frac_noise_2, frac_noise_label):
+for path, label, color, linestyle in zip(frac_noise_2, frac_noise_label, colors, linestyles):
     targ_median_psd = get_median_psd(path)
     w = np.linspace(0, 0.5, len(targ_median_psd))
-    axs[1].plot(w, 10 * np.log10(targ_median_psd), alpha=0.75, label=label, linewidth=3)
+    axs[1].plot(w, 10 * np.log10(targ_median_psd), alpha=0.85, color=color, linestyle=linestyle, label=label, linewidth=3)
 axs[1].set_ylabel('Power Density (dB)', fontsize=16)
 plt.xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=16)
 axs[1].tick_params(axis='both', which='major', labelsize=14)
@@ -255,9 +264,9 @@ wave_gen_median_psd = h5f['gen'][:]
 h5f.close()
 
 w = np.linspace(0, 0.5, len(stft_gen_median_psd))
-plt.plot(w, 10 * np.log10(targ_median_psd), color='green', alpha=0.65, label=f'Target')
-plt.plot(w, 10 * np.log10(wave_gen_median_psd), color='red', alpha=0.65, label=f'WaveGAN')
-plt.plot(w, 10 * np.log10(stft_gen_median_psd), color='blue', alpha=0.65, label=f'STFT-GAN')
+plt.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=0.85, label=f'Target')
+plt.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=0.85, label=f'WaveGAN')
+plt.plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=0.85, label=f'STFT-GAN')
 plt.ylabel('Power Density (dB)')
 plt.xlabel("Normalized Digital Frequency (cycles/sample)")
 plt.grid()
@@ -282,16 +291,16 @@ stft2_gen_median_psd = h5f['gen'][:]
 h5f.close()
 
 w = np.linspace(0, 0.5, len(stft_gen_median_psd))
-plt.plot(w, 10 * np.log10(targ_median_psd), color='green', alpha=0.65, label=f'Target')
-plt.plot(w, 10 * np.log10(wave_gen_median_psd), color='red', alpha=0.65, label=f'WaveGAN')
-plt.plot(w, 10 * np.log10(stft_gen_median_psd), color='blue', alpha=0.65, label=f'STFT-GAN (65x65)')
-plt.plot(w, 10 * np.log10(stft2_gen_median_psd), color='purple', alpha=0.65, label=f'STFT-GAN (129x65)')
+plt.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=0.85, label=f'Target')
+plt.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=0.85, label=f'WaveGAN')
+plt.plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=0.85, label=f'STFT-GAN (65x65)')
+plt.plot(w, 10 * np.log10(stft2_gen_median_psd), color=c4, alpha=0.85, label=f'STFT-GAN (129x65)')
 plt.ylabel('Power Density (dB)')
 plt.xlabel("Normalized Digital Frequency (cycles/sample)")
 plt.grid()
 plt.margins(x=0)
 plt.legend()
-plt.savefig("./paper_plots/FBM/FBM_H80_psd_comparison.png", dpi=300)
+plt.savefig("./paper_plots/FBM_H80_psd_comparison.png", dpi=300)
 plt.show()
 
 #%%
@@ -308,9 +317,9 @@ wave_gen_median_psd = h5f['gen'][:]
 h5f.close()
 
 w = np.linspace(0, 0.5, len(stft_gen_median_psd))
-axs[0].plot(w, 10 * np.log10(targ_median_psd), color='green', alpha=0.65, label=f'Target')
-axs[0].plot(w, 10 * np.log10(wave_gen_median_psd), color='red', alpha=0.65, label=f'WaveGAN')
-axs[0].plot(w, 10 * np.log10(stft_gen_median_psd), color='blue', alpha=0.65, label=f'STFT-GAN')
+axs[0].plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=0.85, label=f'Target')
+axs[0].plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=0.85, label=f'WaveGAN')
+axs[0].plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=0.85, label=f'STFT-GAN')
 axs[0].set_ylabel('Power Density (dB)')
 axs[0].grid()
 axs[0].margins(x=0)
@@ -326,9 +335,9 @@ h5f = h5py.File(f"{wavepath}/median_psds.h5", 'r')
 wave_gen_median_psd = h5f['gen'][:]
 h5f.close()
 
-axs[1].plot(w, 10 * np.log10(targ_median_psd), color='green', alpha=0.65, label=f'Target')
-axs[1].plot(w, 10 * np.log10(wave_gen_median_psd), color='red', alpha=0.65, label=f'WaveGAN')
-axs[1].plot(w, 10 * np.log10(stft_gen_median_psd), color='blue', alpha=0.65, label=f'STFT-GAN')
+axs[1].plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=0.85, label=f'Target')
+axs[1].plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=0.85, label=f'WaveGAN')
+axs[1].plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=0.85, label=f'STFT-GAN')
 axs[1].set_ylabel('Power Density (dB)')
 axs[1].set_xlabel("Normalized Digital Frequency (cycles/sample)")
 axs[1].grid()
@@ -400,11 +409,12 @@ sig_i=1
 impulse_prob = [.01, .05, .1]
 fig3, ax1 = plt.subplots(1, 1, figsize=(5, 5))
 fig4, axs = plt.subplots(len(impulse_prob), 1, sharex=True, sharey=True, figsize=(8, 5))
-
+pdf_colors = [c1, c2, c3]
+linestyles = ['-', '--', '-.']
 for k, p in enumerate(impulse_prob):
     f_BG = bg.bg_pdf(x, p, sig_w, sig_i)
     waveform = bg.simulate_bg_noise(signal_length, p, sig_w, sig_i)
-    ax1.semilogy(x,f_BG,label=f'p={p}', linewidth=3)
+    ax1.semilogy(x,f_BG,label=f'p={p}', linewidth=3, linestyle=linestyles[k])
     axs[k].plot(t_ind,waveform)
     #axs[k].set_title(f'p={p}', fontsize=titlefont)
     axs[k].grid(True)
@@ -431,7 +441,7 @@ fig6, axs = plt.subplots(len(alpha), 1, sharex=True, figsize=(8, 5))
 for k, a in enumerate(alpha):
     f = asn.sas_pdf(x, a)
     waveform = asn.simulate_sas_noise(signal_length, a)
-    ax1.semilogy(x,f,label=fr'$\alpha$={a}', linewidth=3)
+    ax1.semilogy(x,f,label=fr'$\alpha$={a}', linewidth=3, linestyle=linestyles[k])
     axs[k].plot(t_ind,waveform)
     #axs[k].set_title(fr'$\alpha$ = {a}', fontsize=titlefont)
     axs[k].grid(True)

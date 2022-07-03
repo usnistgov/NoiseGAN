@@ -44,15 +44,7 @@ termination of model training.  Each test-run folder contains saved GAN models,
 training metadata, as well as evaluations of the generated distributions.  
 Aggregated plots across model runs are created using the scripts located in `./plotting_scripts/`.
 
-## <u>Requirements</u>
-We use a `conda` virtual environment to manage the project library dependencies.
-Run the following commands to install requirements to a new conda environment:
-```setup
-conda create --name <env> --file .experiment_resources/requirements.txt
-conda activate <env>
-pip install -r .experiment_resources/pip_requirements.txt
-```
-In addition, creation and evaluation of fractionally differenced white noise (FDWN)
+Creation and evaluation of fractionally differenced white noise (FDWN)
 datasets utilizes the `arfima` package in R.  We run R functions from python
 using the interface provided by the python `rpy2` package.  Therefore, using any
 methods for FDWN requires installing R and the `arfima` package.
