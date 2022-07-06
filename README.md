@@ -1,4 +1,4 @@
-## <u>**Evaluating Convolutional Generative Adversarial Networks with Classical Random Process Noise Models**</u>
+## <u>**NoiseGAN: Software for Evaluating Convolutional Generative Adversarial Networks with Classical Random Process Noise Models**</u>
 
 ## Overview
 This repository contains Python code to execute experiments on deep generative
@@ -7,10 +7,16 @@ it includes Pytorch implementations of two generative adversarial network (GAN)
 models for time series based on convolutational neural networks (CNNs):
 **WaveGAN**, a 1-D CNN model, and **STFT-GAN**, a 2-D CNN model.  In addition,
 there are methods for generating and evaluating noise time series defined several by classical random process models:
+
  - band-limited thermal noise, i.e., bandpass filtered white Gaussian noise
  - power law (fractional, colored) noise, including fractionally differenced white noise (FDWN), fractional Gaussian noise (FGN), and fractional Brownian motion (FBM)
  - generalized shot noise, including options for different pulse types and pulse amplitude distributions
  - impulsive noise, including Bernoulli-Gaussian (BG) and symmetric alpha stable (SAS) distributions
+
+For experiment details and results, see 
+
+A. Wunderlich, J.Sklar, “Learning noise with generative adversarial networks: Explorations with classical random
+process models,” _submitted_. Preprint: https://arxiv.org/abs/2207.01110
 
 ## Getting Started
 The software enables automated testing of many model configurations across
@@ -41,7 +47,7 @@ When running the models, experimental results are saved in `./model_results/`
 with subdirectories named by their target dataset and other non-default
 configurations and a time-stamp. Evaluation of the model is set to run at the
 termination of model training.  Each test-run folder contains saved GAN models,
-training metadata, as well as evaluations of the generated distributions.  
+training metadata, as well as evaluations of the generated distributions.
 Aggregated plots across model runs are created using the scripts located in `./plotting_scripts/`.
 
 Creation and evaluation of fractionally differenced white noise (FDWN)

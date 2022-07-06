@@ -21,14 +21,31 @@ def create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands
     """
     Create dataset of real-valued bandpass noise, where each class consists of noise with
     frequency support determined by a bandpass filter.
-    :param num_samples: number of time-series in dataset
-    :param signal_length: time-series length
-    :param param_distrib: 'single' band or 'multiple' bands
-    :param num_bands: number of bands to spread across full bandwidth
-    :param band_index: band index for distrib_type='single'
-    :return: dataset (array of dimension (num_samples, signal_length+1), where the first column contains class labels)
-             scale_coeffs (dict of scale coefficients)
-             sos_coeffs (dict of SOS IIR filter coefficients)
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    param_distrib : string
+        Parameter distribution string.
+        Options: 'single' or 'multiple'
+    num_bands : int, optional
+        Number of bands to spread across full bandwidth. The default is 8.
+    band_index : int, optional
+        Band index for param_distrib='single'. The default is None.
+
+    Returns
+    -------
+    dataset : numpy array
+        Dataset array of dimension (num_samples, signal_length+1),
+        where the first column contains class labels.
+    scale_coeffs : dict
+        Dictionary of scale coefficients.
+    sos_coeffs : dict
+        Dictionary of SOS IIR filter coefficients.
+
     """
     sampling_frequency = 2  # Nyquist freq is 1 (normalized digital frequency)
     filter_order = 40
@@ -79,20 +96,38 @@ def create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands
 
 def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=None):
     """
-    Create generalized shot noise (filtered poisson process) dataset
-    :param num_samples: number of time-series in dataset
-    :param signal_length: time-series length
-    :param param_distrib: parameter distribution string (options: 'fixed', 'uniform', 'multimodal')
-    :param pulse_type: shape of shot noise pulses (options: 'one_sided_exponential', 'linear_exponential', 'gaussian')
-    :param amp_distrib: pulse amplitude distribution (options: 'exponential', 'rayleigh')
-    :param event_rate: events per unit time
-    :return: Outputs: dataset (array of dimension (num_samples, signal_length+1), where
-                      the first column contains parameter values)
-             scale_coeffs (dict of scale coefficients)
+    Create generalized shot noise (filtered poisson process) dataset.
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    param_distrib : string
+        Parameter distribution string.
+        Options: 'fixed', 'uniform', 'multimodal'
+    pulse_type : string
+        Shot noise pulse shape.
+        Pptions: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    amp_distrib : string
+       String specifying pulse amplitude distribution.
+       Options: 'exponential', 'rayleigh', 'standard_normal'
+    event_rate : float, optional
+        Events per unit time. The default is None.
+
+    Returns
+    -------
+    dataset : numpy array
+        Data array of dimension (num_samples, signal_length+1),
+        where the first column contains parameter values
+    scale_coeffs : dict
+        Dictionary of scale coefficients.
+
     """
-    tau_d = 1  # pulse duration
+    sigma_d = 1  # pulse duration
     beta = 1  # mean pulse amplitude
-    theta = 0.1  # normalized time step = delta_t/tau_d
+    theta = 0.1  # normalized time step = delta_t/sigma_d
 
     if param_distrib == 'fixed':
         event_rates = np.ones(num_samples)*event_rate
@@ -114,7 +149,7 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
     for k, param in enumerate(event_rates):
         dataset[k, :] = sn.simulate_shot_noise(signal_length, pulse_type,
                                                amp_distrib, event_rates[k],
-                                               tau_d, beta, theta)
+                                               sigma_d, beta, theta)
     param_values = np.reshape(event_rates, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
     scale_coeffs = {}

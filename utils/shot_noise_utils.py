@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''
-Methods for generating generalized shot noise processes and estimating the
-event rate parameter.
+Module for generating generalized shot noise (filtered Poisson) processes
+and estimating the event rate parameter.
 
 Author: Adam Wunderlich
 Date: June 2022
@@ -17,21 +17,39 @@ from spectrum import pmtm
 rng = default_rng()
 
 
-def simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate, tau_d, beta, theta):
+def simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate, sigma_d, beta, theta):
     """
-     Simulate generalize shot _archive (filtered Poisson process)
-    :param signal_length:
-    :param pulse_type: string specifiying pulse shape
-    :param amp_distrib: string specifying amplitude distribution
-    :param event_rate: events per unit time
-    :param tau_d: pulse duration
-    :param beta: mean pulse amplitude
-    :param theta: normalized time step
-    :return: generalized shot _archive process
+    Simulate generalized shot noise (filtered Poisson process).
+
+    Parameters
+    ----------
+    signal_length : int
+        Length of time series.
+    pulse_type : string
+        String specifiying pulse shape.
+        Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    amp_distrib : string
+        String specifying pulse amplitude distribution.
+        Options: 'exponential', 'rayleigh', 'standard_normal'
+    event_rate : float
+        Events per unit time, denoted nu.
+    sigma_d : float
+        Pulse duration parameter.
+    beta : float
+        Mean pulse amplitude.
+    theta : float
+        Normalized time step equal to delta_t/sigma_d.
+
+    Returns
+    -------
+    X : 1-D numpy array
+        Generalized shot noise process.
+
     """
-    warmup = signal_length
+
+    warmup = signal_length  # number of time steps to discard
     sig_len = signal_length + warmup
-    delta_t = theta * tau_d
+    delta_t = theta * sigma_d
     T = (sig_len - 1) * delta_t
     K = rng.poisson(event_rate * T)  # number of pulses in time interval
     if amp_distrib == 'exponential':
@@ -45,66 +63,96 @@ def simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate, tau_
     f_K = np.zeros(sig_len)
     for k in np.arange(0, K):
         f_K[mk[k]] = A[k]
-    pulse, t, I1, I2 = pulse_function(sig_len, pulse_type, theta, tau_d)
+    pulse, t, I1, I2 = pulse_function(sig_len, pulse_type, theta, sigma_d)
     X = signal.fftconvolve(f_K, pulse, 'same')
     X = X[warmup:]
     return X
 
 
-def pulse_function(signal_length, pulse_type, theta, tau_d):
-    # Outputs: pulse (pulse waveform), t (time),
-    #          I1, I2 (first and second integrals of pulse)
+def pulse_function(signal_length, pulse_type, theta, sigma_d):
     """
-    Compute pulse functions for generalized shot noise
-    :param signal_length:
-    :param pulse_type:
-    :param theta:
-    :param tau_d:
-    :return: pulse (pulse waveform), t (time values, centered at zero),
-             I1, I2 (first and second integrals of pulse)
-    """
+    Compute pulse functions for generalized shot noise.
 
-    delta_t = theta*tau_d
+    Parameters
+    ----------
+    signal_length : int
+        Length of time series.
+    pulse_type : string
+        String specifiying pulse shape.
+        Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    theta : float
+        Normalized time step equal to delta_t/sigma_d.
+    sigma_d : float
+        Pulse duration parameter.
+
+    Returns
+    -------
+    pulse : 1-D numpy array
+        Pulse time series.
+    t : 1-D numpy array
+        Time values, centered at zero.
+    I1 : float
+        Integral of pulse.
+    I2 : float
+        Integral of pulse squared.
+
+    """
+    delta_t = theta*sigma_d
     m = np.arange(0, signal_length)
     t = (m - signal_length/2)*delta_t  # time values, centered at zero
     pos_ind = np.where(t >= 0)
     pulse = np.zeros(signal_length)
     if pulse_type == 'one_sided_exponential':
-        pulse[pos_ind] = (1/tau_d)*np.exp(-t[pos_ind]/tau_d)
+        pulse[pos_ind] = (1/sigma_d)*np.exp(-t[pos_ind]/sigma_d)
         I1 = 1
-        I2 = 1/(2*tau_d)
+        I2 = 1/(2*sigma_d)
     elif pulse_type == 'linear_exponential':
-        pulse[pos_ind] = t[pos_ind]/(tau_d**2)*np.exp(-t[pos_ind]/tau_d)
+        pulse[pos_ind] = t[pos_ind]/(sigma_d**2)*np.exp(-t[pos_ind]/sigma_d)
         I1 = 1
-        I2 = 1/(4*tau_d)
+        I2 = 1/(4*sigma_d)
     elif pulse_type == 'gaussian':
-        pulse = np.exp(-(t**2)/(2*tau_d**2))/(np.sqrt(2*np.pi)*tau_d)
+        pulse = np.exp(-(t**2)/(2*sigma_d**2))/(np.sqrt(2*np.pi)*sigma_d)
         I1 = 1
-        I2 = 1/(2*tau_d*np.sqrt(np.pi))
+        I2 = 1/(2*sigma_d*np.sqrt(np.pi))
     return pulse, t, I1, I2
 
 
-def estimate_event_rate(X, pulse_type, amp_distrib, theta, tau_d):
+def estimate_event_rate(X, pulse_type, amp_distrib, theta, sigma_d):
     """
-    Estimate event rate of filtered Possion process
-    :param X: FP process
-    :param pulse_type:
-    :param amp_distrib:
-    :param theta:
-    :param tau_d:
-    :return: estimated event rate
+    Estimate event rate of filtered Possion process.
+
+    Parameters
+    ----------
+    X : 1-D numpy array
+        Filtered Poisson process.
+    pulse_type : string
+        String specifiying pulse shape.
+        Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    amp_distrib : string
+        String specifying amplitude distribution.
+        Options: 'exponential', 'rayleigh', 'standard_normal'
+    theta : float
+        Normalized time step equal to delta_t/sigma_d.
+    sigma_d : float
+        Pulse duration parameter.
+
+    Returns
+    -------
+    nu_est : float
+        Estimated event rate.
+
     """
     signal_length = len(X)
-    pulse, t, I1, I2 = pulse_function(signal_length, pulse_type, theta, tau_d)
+    pulse, t, I1, I2 = pulse_function(signal_length, pulse_type, theta, sigma_d)
     mean_X = np.mean(X)
     var_X = np.var(X)
-    delta_t = theta*tau_d
+    delta_t = theta*sigma_d
     T = (signal_length-1)*delta_t
     if amp_distrib == 'exponential':
-        nu_est = 2*mean_X**2*I2/(var_X*I1**2)  # T >> tau_d
+        nu_est = 2*mean_X**2*I2/(var_X*I1**2)  # T >> sigma_d
         # nu_est = (mean_X**2/var_X)*(2*I2/(I1**2) - 1/T)
     elif amp_distrib == 'rayleigh':
-        nu_est = 4*mean_X**2*I2/(var_X*np.pi*I1**2)  # T >> tau_d
+        nu_est = 4*mean_X**2*I2/(var_X*np.pi*I1**2)  # T >> sigma_d
         # nu_est = (mean_X**2/var_X)*(4*I2/(np.pi*I1**2) - 1/T)
         # Note: the rayleigh estimators exhibit increasing relative bias with increasing nu
     elif amp_distrib == 'standard_normal':
@@ -112,29 +160,47 @@ def estimate_event_rate(X, pulse_type, amp_distrib, theta, tau_d):
     return nu_est
 
 
-def estimate_acf(X, pulse_type, event_rate, theta, tau_d, beta, amp_distrib):
+def estimate_acf(X, pulse_type, event_rate, theta, sigma_d, beta, amp_distrib):
     """
-    return estimated and theoretical normalized PSD and ACF
+    Return estimated and theoretical normalized autocorrelation function (ACF)
+    for generalized shot noise.
 
-    :param X:
-    :param pulse_type:
-    :param event_rate:
-    :param theta:
-    :param tau_d:
-    :param beta:
-    :param amp_distrib:
-    :return:
+    Reference for theoretical ACF:
+        R. M. Howard, A Signal Theoretic Introduction to Random Processes.
+        John Wiley & Sons, 2016.
+
+    Parameters
+    ----------
+    X : 1-D numpy array
+        Generalized shot noise process.
+   pulse_type : string
+       String specifiying pulse shape.
+       Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    event_rate : float
+        Events per unit time, denoted nu.
+    theta : float
+        Normalized time step equal to delta_t/sigma_d.
+    sigma_d : float
+        Pulse duration parameter.
+    beta : float
+        Mean pulse amplitude.
+    amp_distrib : string
+        String specifying amplitude distribution.
+        Options: 'exponential', 'rayleigh', 'standard_normal'
+
+    Returns
+    -------
+    Rxx : 1-D numpy array
+        Estimated normalized ACF.
+    tau : 1-D numpy array
+        Lags.
+    Rxx_theory : 1-D numpy array
+        Theoretical normalized ACF.
+
     """
     signal_length = len(X)
-    pulse, t, I1, I2 = pulse_function(signal_length, pulse_type, theta, tau_d)
+    pulse, t, I1, I2 = pulse_function(signal_length, pulse_type, theta, sigma_d)
     X = X - np.mean(X)  # remove mean
-
-    # estimate PSD
-    # Sk, weights, _eigenvalues = pmtm(X, NW=4, k=7, method='eigen')
-    # Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
-    # Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd
-    # w = np.linspace(0, 1, len(Pxx))  # normalized digital frequency
-    # Pxx = Pxx / Pxx[0]  # normalize
 
     # estimate ACF
     Rxx = np.correlate(X, X, mode='full')
@@ -166,12 +232,20 @@ def estimate_acf(X, pulse_type, event_rate, theta, tau_d, beta, amp_distrib):
     Rxx_theory = Rxx_theory[tau]
     Rxx_theory = Rxx_theory / Rxx_theory[0]  # normalize
 
+    # estimate PSD
+    # Sk, weights, _eigenvalues = pmtm(X, NW=4, k=7, method='eigen')
+    # Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
+    # Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd
+    # w = np.linspace(0, 1, len(Pxx))  # normalized digital frequency
+    # Pxx = Pxx / Pxx[0]  # normalize
+
     # theoretical PSD
     # Pxx_theory = event_rate * (amp_mean ** 2 + amp_cenmom2) * np.abs(np.fft.fft(pulse)) ** 2
     # midpt = int((len(Pxx_theory) + 1) / 2)
     # Pxx_theory = Pxx_theory[0: midpt]  # one-sided PSD
     # wt = np.linspace(0, 1, len(Pxx_theory))  # normalized digital frequency
     # Pxx_theory = Pxx_theory / Pxx_theory[0]  # normalize
+
     return Rxx, tau, Rxx_theory
 
 
@@ -181,7 +255,7 @@ def main():
     pulse_type_list = ['one_sided_exponential', 'linear_exponential', 'gaussian']
     pulse_type = pulse_type_list[0]
     amp_distrib = 'exponential' # 'standard_normal', 'exponential', 'rayleigh'
-    tau_d, beta, theta = 1, 1, 0.1
+    sigma_d, beta, theta = 1, 1, 0.1
     event_rate = np.arange(.25, 3.25, .25)
     num_repeats = 500  # number of repeats at each event rate
 
@@ -192,11 +266,11 @@ def main():
         print(f"event rate {k} of {len(event_rate)}")
         acf_list = []
         for n in np.arange(num_repeats):
-            X = simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate[k], tau_d, beta, theta)
-            nu_est[k, n] = estimate_event_rate(X, pulse_type, amp_distrib, theta, tau_d)
+            X = simulate_shot_noise(signal_length, pulse_type, amp_distrib, event_rate[k], sigma_d, beta, theta)
+            nu_est[k, n] = estimate_event_rate(X, pulse_type, amp_distrib, theta, sigma_d)
             mu_est[k,n] = np.mean(X)
             if k == 0 or k == len(event_rate)-1:
-               Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type, event_rate[k], theta, tau_d, beta, amp_distrib)
+               Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type, event_rate[k], theta, sigma_d, beta, amp_distrib)
                acf_list.append(Rxx)
         if k == 0:
             X1 = X
@@ -262,8 +336,8 @@ def main():
     pt_ind = pt_ind.astype(int)
     for k in range(3):
         pulse, t, I1, I2 = pulse_function(signal_length, pulse_type_list[k],
-                                          theta, tau_d)
-        Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type_list[k], event_rate[0], theta, tau_d, beta, amp_distrib)
+                                          theta, sigma_d)
+        Rxx, tau, Rxx_theory = estimate_acf(X, pulse_type_list[k], event_rate[0], theta, sigma_d, beta, amp_distrib)
         ax8.plot(t[pt_ind], pulse[pt_ind])
         ax9.plot(tau, Rxx_theory)
     ax8.grid()

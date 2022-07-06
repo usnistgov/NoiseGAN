@@ -31,8 +31,9 @@ rng = default_rng()  # random number generator object
 
 def simulate_FGN(signal_length, H, sigma_sq=1):
     """
-    Simulate fractional Gaussian noise (FGN): Hurst exponent is in the range (0,1) (H < 0.5 yields
-    anti-persistent (short-memory) FGN,  H=0.5 corresponds to WGN, H > 0.5 yields persistent (long-memory) FGN).
+    Simulate fractional Gaussian noise (FGN): Hurst exponent is in the
+    range (0,1) (H < 0.5 yields anti-persistent (short-memory) FGN,
+    H=0.5 corresponds to WGN, H > 0.5 yields persistent (long-memory) FGN).
 
     References:
         1) Perrin et al, "Fast and Exact Synthesis for 1-D Fractional Brownian Motion and Fractional Gaussian Noises,"
@@ -40,10 +41,22 @@ def simulate_FGN(signal_length, H, sigma_sq=1):
         2) Dietrich and Newsam, "Fast and exact simulation of stationary Gaussian processes through circulant embedding
         of the covariance matrix," SIAM Journal on Scientific Computing, 18(4), pp.1088-1107, 1997.
 
-    :param signal_length:
-    :param H: Hurst exponent
-    :param sigma_sq: variance of FGN
-    :return: Gh1, Gh2 (two independent fractional Gaussian noise realizations)
+    Parameters
+    ----------
+    signal_length : int
+        length of time series.
+    H : float
+        Hurst exponent (takes values between 0 and 1).
+    sigma_sq : float, optional
+        Variance of FGN. The default is 1.
+
+    Returns
+    -------
+    Gh1: 1-D numpy array
+        Fractional Gaussian noise realization.
+    Gh2: 1-D numpy array
+        Fractional Gaussian noise realization that is independent of Gh1.
+
     """
     M = signal_length - 1  # fft length is 2M
     k1 = np.arange(signal_length)
@@ -62,11 +75,22 @@ def simulate_FGN(signal_length, H, sigma_sq=1):
 
 def FGNacorr(H, k, sigma_sq=1):
     """
-    Autocorrelation function for fractional Gaussian noise
-    :param H: Huerst exponent
-    :param k:
-    :param sigma_sq: variance of FGN
-    :return:
+    Autocorrelation function for fractional Gaussian noise.
+
+    Parameters
+    ----------
+    H : float
+        Hurst exponent (takes values between 0 and 1).
+    k : 1-D numpy array
+        Vector of lags.
+    sigma_sq : float, optional
+        Variance of FGN. The default is 1.
+
+    Returns
+    -------
+    rG : 1-D numpy array
+        Autocorrelation function values at specified lags.
+
     """
     rG = (sigma_sq / 2) * (np.abs(k + 1) ** (2 * H) - 2 * np.abs(k) ** (2 * H) + np.abs(k - 1) ** (2 * H))
     return rG
@@ -74,9 +98,18 @@ def FGNacorr(H, k, sigma_sq=1):
 
 def FGN_to_FBM(FGN_time_series):
     """
-    Convert fractional Gaussian noise to a fractional Brownian motion process
-    :param FGN_time_series:
-    :return:
+    Convert fractional Gaussian noise to a fractional Brownian motion process.
+
+    Parameters
+    ----------
+    FGN_time_series : 1-D numpy array
+        FGN time series.
+
+    Returns
+    -------
+    FBM_time_series : 1-D numpy array
+        FBM time series.
+
     """
     N = len(FGN_time_series)
     FBM_time_series = np.concatenate((np.array([0]), np.cumsum(FGN_time_series[1: N])))
@@ -102,9 +135,18 @@ def estimate_Hurst_exponent(x, process_type='FGN'):
         circularly-symmetric fractional Brownian motion,"
         Statistics & Probability Letters, vol. 128, pp. 21-27, 2017.
 
-    :param x: real or complex-valued FGN or FBM process
-    :param process_type: 'FGN' or 'FBM'
-    :return: Estimated Hurst exponent
+    Parameters
+    ----------
+    x : 1-D numpy array
+        real or complex-valued FGN or FBM process.
+    process_type : string, optional
+        Specify process type.  Options: 'FGN' or 'FBM'. The default is 'FGN'.
+
+    Returns
+    -------
+    Hest : float
+        Estimated hurst index.
+
     """
     b = np.array([1, -2, 1])  # 2nd-order difference filter
     Lb = len(b)
@@ -135,7 +177,18 @@ def estimate_Hurst_exponent(x, process_type='FGN'):
 
 @contextmanager
 def suppress_stdout():
-    # function to suppress unwanted console output
+    """
+    Function to suppress unwanted console output.
+
+    Parameters
+    ----------
+    None.
+
+    Returns
+    -------
+    None.
+
+    """
     with open(os.devnull, "w") as devnull:
         old_stdout = sys.stdout
         sys.stdout = devnull
@@ -147,10 +200,21 @@ def suppress_stdout():
 
 def simulate_FDWN(signal_length, dfrac):
     """
-    Simulate FDWN time-series
-    :param signal_length:
-    :param dfrac: fractional noise parameter in the range (-.5,.5)
-    :return: output: FDWN_time_series
+    Simulate fractionally differenced white noise (FDWN) time-series using
+    the `arfima' R package.
+
+    Parameters
+    ----------
+    signal_length : int
+        Length of time series.
+    dfrac : float
+        Fractional noise parameter in the range (-.5,.5).
+
+    Returns
+    -------
+    FDWN_time_series : 1-D numpy array
+        FDWN time series.
+
     """
     arfima_sim = robjects.r['arfima.sim']
     model = robjects.r.list(dfrac=ri.FloatSexpVector((dfrac,)))
@@ -160,10 +224,21 @@ def simulate_FDWN(signal_length, dfrac):
 
 def estimate_FD_param(x):
     """
-    Fit fractionally-differenced white noise model
-    :param x: real-valued time-series
-    :return: dfrac (estimated fractional noise parameter),
-             dfrac_std (estimated standard error on dfrac)
+    Fit fractionally-differenced white noise (FDWN) model
+    using the `arfima' R package.
+
+    Parameters
+    ----------
+    x : 1-D numpy array
+        Real-valued time-series.
+
+    Returns
+    -------
+    dfrac : float
+        Estimated fractional noise parameter.
+    dfrac_std : TYPE
+        Estimated standard error for dfrac.
+
     """
     x = robjects.vectors.FloatSexpVector(x)
     order = robjects.r.c(0, 0, 0)  # ARIMA model order
