@@ -107,14 +107,15 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
     param_distrib : string
         Parameter distribution string.
         Options: 'fixed', 'uniform', 'multimodal'
-    pulse_type : string
+    pulse_type : str
         Shot noise pulse shape.
         Pptions: 'one_sided_exponential', 'linear_exponential', 'gaussian'
     amp_distrib : string
        String specifying pulse amplitude distribution.
        Options: 'exponential', 'rayleigh', 'standard_normal'
     event_rate : float, optional
-        Events per unit time. The default is None.
+        Events per unit time for 'fixed' parameter distribution option.
+        The default is None.
 
     Returns
     -------
@@ -160,18 +161,36 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
     return dataset, scale_coeffs
 
 
-def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=None, sig0=0.1, sig1=1):
+def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=None, sig_w=0.1, sig_i=1):
     """
-    Create Bernoulli-Gaussian noise (Gaussian mixture model) dataset
-    :param num_samples: number of time-series in dataset
-    :param signal_length: time-series length
-    :param param_distrib: parameter distribution string (options: 'fixed', 'uniform', 'multimodal')
-    :param sig0: standard deviation of background noise component
-    :param sig1: standard deviation of impulse noise component
-    :param impulse_prob: probability of impulse
-    :return: Outputs: dataset (array of dimension (num_samples, signal_length+1), where
-                      the first column contains parameter values)
-             scale_coeffs (dict of scale coefficients)
+    Create Bernoulli-Gaussian (BG) noise dataset.  This noise model is
+    equivalent to  a 2-component Gaussian mixture model.
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    param_distrib : str
+        Parameter distribution str.
+        Options: 'fixed', 'uniform', 'multimodal'
+    impulse_prob : float, optional
+        Impulse probability for 'fixed' parameter distribution option.
+        The default is None.
+    sig_w : float, optional
+        Standard deviation for background thermal noise component. The default is 0.1.
+    sig_i : TYPE, optional
+        Standard deviation for impulsive noise component. The default is 1.
+
+    Returns
+    -------
+    dataset : numpy array
+        Dataset array of dimension (num_samples, signal_length+1), where
+        the first column contains parameter values
+    scale_coeffs : dict
+        Dictionary of scale coefficients.
+
     """
 
     if param_distrib == 'fixed':
@@ -194,7 +213,7 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
                 impulse_probs[k] = 0.99
     dataset = np.zeros((num_samples, signal_length))
     for k, p in enumerate(impulse_probs):
-        dataset[k, :] = bg.simulate_bg_noise(signal_length, p, sig0, sig1)
+        dataset[k, :] = bg.simulate_bg_noise(signal_length, p, sig_w, sig_i)
 
     param_values = np.reshape(impulse_probs, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
@@ -208,17 +227,30 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
 
 def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
     """
-    Create dataset of symmetric alpha-stable (SAS) noise
-    :param num_samples: number of time-series in dataset
-    :param signal_length: time-series length
-    :param param_distrib: parameter distribution string
-                          (options: 'fixed', 'uniform', 'multimodal')
-    :param alpha: characteristic exponent
-    :return: Outputs: dataset (array of dimension (num_samples, signal_length+1),
-                      where the first column contains parameter values)
-             scale_coeffs (dict of scale coefficients)
-    """
+    Create dataset of standard symmetric alpha-stable (SAS) noise.
 
+    Parameters
+    ----------
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    param_distrib : string
+        Parameter distribution string.
+        Options: 'fixed', 'uniform', 'multimodal'
+    alpha : float, optional
+        Characteristic exponent for 'fixed' parameter distribution option.
+        The default is None.
+
+    Returns
+    -------
+    dataset : numpy array
+        Dataset array of dimension (num_samples, signal_length+1),
+        where the first column contains parameter values.
+    scale_coeffs : dict
+        Dictionary of scale coefficients.
+
+    """
     if param_distrib == 'fixed':
         alphas = np.ones(num_samples)*alpha
     elif param_distrib == 'uniform':
@@ -253,13 +285,32 @@ def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
 
 def create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, Hurst_index=None):
     """
-    Create factional noise dataset
-    :param num_samples: number of time-series in dataset
-    :param signal_length: time-series length
-    :param noise_type: 'FGN','FBM', or 'FDWN'
-    :param param_distrib: parameter distribution string [options: 'fixed', 'uniform low', 'uniform high', 'mulitmodal low', 'multimodal high']
-    :param Hurst_index: Hurst index for 'fixed' distribution option
-    :return: array of dimension (num_samples, signal_length+1), where the first column contains parameter values), dict of scale coefficients
+    Create factional (power law) noise dataset.
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    noise_type : string
+            Fractional noise type.
+            Options: 'FGN','FBM', or 'FDWN'
+    param_distrib : string
+        Parameter distribution string.
+        Options: options: 'fixed', 'uniform low', 'uniform high', 'mulitmodal low', 'multimodal high'
+    Hurst_index : flat, optional
+        Hurst index for 'fixed' parameter distribution option.
+        The default is None.
+
+    Returns
+    -------
+    dataset : numpy array
+        Dataset array of dimension (num_samples, signal_length+1),
+        where the first column contains parameter values.
+    scale_coeffs : dict
+        Dictionary of scale coefficients.
+
     """
     if 'fixed' in param_distrib:
         param_values = np.ones(num_samples) * Hurst_index
@@ -321,20 +372,40 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
                  param_value=None, num_bands=8, band_index=None,
                  pulse_type=None, amp_distrib=None):
     """
-    :param data_dir:
-    :param num_samples: number of time-series in training dataset
-    :param signal_length: time-series length
-    :param noise_type: Noise distribution type: 'bandpass', 'shot', 'BG',
-                        'SAS', 'FGN','FBM', or 'FDWN'
-    :param param_distrib: parameter distribution string
-    :param param_value: Hurst index for fractional noise,
-                        event rate for generalized shot noise,
-                        impulse_prob for BG noise, alpha for SAS noise
-    :param num_bands: number of bands for bandpass noise
-    :param band_index: index of band for single band of BP noise
-    :param pulse_type: pulse type for shot noise
-    :param amp_distrib: amplitude distribution for shot noise
-    :return:
+    Save noise dataset to specified directory.
+
+    Parameters
+    ----------
+    data_dir : string
+        Directory for dataset.
+    num_samples : int
+        Number of time-series in dataset.
+    signal_length : int
+        Time series length.
+    noise_type : string
+        String specifying noise type.
+        Options: 'bandpass', 'shot', 'BG', 'SAS', 'FGN','FBM', or 'FDWN'
+    param_distrib : string
+        Parameter distribution string.
+        For options, see method above corresponding to specified noise type.
+    param_value : float, optional
+        Noise parameter value for `fixed' param distribution option.
+        For options, see method above corresponding to specified noise type.
+        The default is None.
+    num_bands : int, optional
+        Number of bands for bandpass noise. The default is 8.
+    band_index : int, optional
+        Index of band to use with `single' param_distrib setting for bandpass noise.
+        The default is None.
+    pulse_type : string, optional
+        Pulse type for shot noise. The default is None.
+    amp_distrib : string, optional
+        Pulse amplitude distribution for shot noise. The default is None.
+
+    Returns
+    -------
+    None.
+
     """
     if noise_type == 'bandpass':
         train_dataset, scale_coeffs, sos_coeffs = create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands, band_index)

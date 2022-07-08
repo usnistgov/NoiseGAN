@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-Module for evaluating noise datasets.
+Module for evaluating generated noise datasets.
 
-Authors: Adam Wunderlich, Jack Sklar
-Date: June 2022
 """
 
 import json
@@ -21,14 +19,25 @@ from utils.bg_noise_utils import estimate_bg_parameters
 
 def evaluate_bp_noise(gen_data, gen_labels, targ_data, targ_labels, save_path):
     """
+    Evaluate bandpass (BP) noise dataset.
 
-    :param gen_data:
-    :param labels:
-    :param noise_dict:
-    :param sos_coeffs:
-    :param param_distrib:
-    :param save_path:
-    :return:
+    Parameters
+    ----------
+    gen_data : ndarray
+        Generated data.
+    gen_labels : array-like, Iterable, dict, or scalar value.
+        Labels for generated data.
+    targ_data : ndarray
+        Target data.
+    targ_labels : array-like, Iterable, dict, or scalar value.
+        Labels for target data.
+    save_path : string
+        Directory to save results.
+
+    Returns
+    -------
+    None.
+
     """
     NW = 4  # time-halfbandwidth product for pmtm psd estimator
     _ = plt.figure(figsize=(10, 7))
@@ -59,15 +68,31 @@ def evaluate_bp_noise(gen_data, gen_labels, targ_data, targ_labels, save_path):
     plt.clf()
 
 
-def evaluate_fn(targ_data, gen_data, noise_type, param_distrib, param_value=None, output_path=None):
+def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
     """
+    Evaluate bandpass fractional (power law) noise dataset.
 
-    :param targ_data:
-    :param gen_data:
-    :param param_distrib:
-    :param param_value:
-    :param output_path:
-    :return:
+    Parameters
+    ----------
+    targ_data : ndarray
+        Target data.
+    gen_data : ndarray
+        Generated data.
+    noise_type : string
+        Fractional noise type. Options: 'FGN', 'FBM', 'FDWN'
+    output_path : string, optional
+        Directory to save results.  The default is None.
+
+    Returns
+    -------
+    targ_H_estimates : list
+        DESCRIPTION.
+    gen_H_estimates : list
+        DESCRIPTION.
+    hurst_wass_dist : float
+        Wasserstein distance between distributions of estimated Hurst indices
+        for target and generated data distributions.
+
     """
     targ_H_estimates, gen_H_estimates = [], []
     for i in range(len(targ_data)):
@@ -98,7 +123,7 @@ def evaluate_fn(targ_data, gen_data, noise_type, param_distrib, param_value=None
     plt.xlabel("Estimated Hurst Indices")
     plt.ylabel("Count")
     if output_path is not None:
-        plt.savefig(output_path + f"hurst_histogram.png", dpi=300)
+        plt.savefig(output_path + "hurst_histogram.png", dpi=300)
     plt.clf()
 
     param_dists = {"target": targ_H_estimates, "generated": gen_H_estimates}
@@ -112,14 +137,29 @@ def evaluate_fn(targ_data, gen_data, noise_type, param_distrib, param_value=None
 
 def evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, output_path):
     """
+    Evaluate shot noise dataset.
 
-    :param targ_data:
-    :param gen_data:
-    :param pulse_type:
-    :param amp_distrib:
-    :param param_value:
-    :param output_path:
-    :return:
+    Parameters
+    ----------
+    targ_data : ndarray
+        Target data.
+    gen_data : ndarray
+        Generated data.
+    pulse_type : string
+        String specifiying pulse shape.
+        Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+    amp_distrib : string
+        String specifying pulse amplitude distribution.
+        Options: 'exponential', 'rayleigh', 'standard_normal'
+    param_value : float
+        Target shot noise event rate.
+    output_path : string
+        Directory to save results.
+
+    Returns
+    -------
+    None.
+
     """
     tau_d, beta, theta = 1, 1, 0.1
     gen_nu_ests, targ_nu_ests = [], []
@@ -163,28 +203,53 @@ def evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, outpu
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + f"event_rate_hists.png", dpi=300)
+        plt.savefig(output_path + "event_rate_hists.png", dpi=300)
     plt.clf()
 
-    plt.plot(tau, targ_median_acf, color='blue', alpha=0.7, label=f'Target Median ACF')
-    plt.plot(tau, gen_median_acf, color='green', alpha=0.7, label=f'Generated Median ACF')
+    plt.plot(tau, targ_median_acf, color='blue', alpha=0.7, label='Target Median ACF')
+    plt.plot(tau, gen_median_acf, color='green', alpha=0.7, label='Generated Median ACF')
     plt.title('ACF comparison')
     plt.grid()
     plt.legend()
     plt.tight_layout()
     if output_path is not None:
-        plt.savefig(output_path + f"acf_comparison.png", dpi=300)
+        plt.savefig(output_path + "acf_comparison.png", dpi=300)
     plt.clf()
     return gen_median_nu_est, targ_median_nu_est, event_rate_dist
 
 
 def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     """
+    Evaluate Bernoulli-Gaussin (BG) noise dataset.
 
-    :param targ_data:
-    :param gen_data:
-    :param output_path:
-    :return:
+    Parameters
+    ----------
+    targ_data : ndarray
+        Target data.
+    gen_data : ndarray
+        Generated data.
+    param_value : float
+        Target impulse probability.
+    output_path : string
+        Directory to save results.
+
+    Returns
+    -------
+    targ_prob_median : array
+        Median estimated impulse probabilities for target data.
+    gen_prob_median : array
+        Median estimated impulse probabilities for generated data.
+    targ_amp_ratio_median : array
+        Median estimated scale ratio for target data.
+    gen_amp_ratio_median : array
+        Median estimation scale ratio for generated data.
+    impulse_prob_dist : float
+        Wasserstein distance between target and generated ditributions
+        of estimated impulse probability.
+    amp_ratio_dist : float
+        Wasserstein distance between target and generated distributions
+        of estimated scale ratio.
+
     """
     targ_prob_ests, gen_prob_ests = [], []
     targ_amp_ratios, gen_amp_ratios = [], []
@@ -228,7 +293,7 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + f"impulse_prob.png", dpi=300)
+        plt.savefig(output_path + "impulse_prob.png", dpi=300)
     plt.clf()
 
     bins = np.histogram(np.hstack((gen_amp_ratios, targ_amp_ratios)), bins=50)[1]  # get the bin edges
@@ -238,7 +303,7 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + f"amplitude_ratio.png", dpi=300)
+        plt.savefig(output_path + "amplitude_ratio.png", dpi=300)
     plt.clf()
 
     return targ_prob_median, gen_prob_median, targ_amp_ratio_median, gen_amp_ratio_median, \
@@ -246,6 +311,31 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
 
 
 def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
+    """
+    Evaluate symmetric alpha stable (SAS) noise dataset
+
+    Parameters
+    ----------
+    targ_data : ndarray
+        Target data.
+    gen_data : ndarray
+        Generated data.
+    param_value : float
+        Target characteristic exponent.
+    output_path : string
+        Directory to save results.
+
+    Returns
+    -------
+    targ_alpha_median : array
+        Median estimated characteric exponent for target data.
+    gen_alpha_median : array
+        Median estimatd characteristic exponent for generated data.
+    alpha_dist : float
+        Wasserstein distance between target and generated distributions
+        of estimated characteristic exponent.
+
+    """
     print("Estimate Alpha Values: ")
     targ_alpha_ests, gen_alpha_ests = [], []
     targ_gamma_ests, gen_gamma_ests = [], []
@@ -284,19 +374,36 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + f"alpha_ests.png", dpi=300)
+        plt.savefig(output_path + "alpha_ests.png", dpi=300)
     plt.clf()
     return targ_alpha_median, gen_alpha_median, alpha_dist
 
 
 def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path):
     """
-    Estimate PSD of target and generated distributions
-    :param targ_data:
-    :param gen_data:
-    :param output_path:
-    :return:
+    Estimate median estimated power spectral densities (PSDs)
+    of target and generated distributions and geodesic PSD distance.
+
+    Parameters
+    ----------
+    targ_data : ndarray
+        Target data.
+    gen_data : ndarray
+        Generated data.
+    param_value : float
+        Target noise parameter value.
+    noise_type : string
+        String specifying noise type.
+        Options: 'bandpass', 'shot', 'BG', 'SAS', 'FGN','FBM', or 'FDWN'
+    output_path : string
+        Directory to save results.
+
+    Returns
+    -------
+    psd_dist : float
+        Estimated geodesic distance between median estimated PSDs for target and generated data.
     """
+
     targ_PSD_estimates, gen_PSD_estimates = [], []
     for i, (targ_sample, gen_sample) in enumerate(zip(targ_data, gen_data)):
         Sk, weights, _eigenvalues = pmtm(targ_sample, NW=4, k=7, method='eigen')
@@ -317,8 +424,8 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
     h5f.create_dataset('targ', data=targ_median_psd)
     h5f.close()
     w = np.linspace(0, 0.5, len(gen_median_psd))
-    plt.plot(w, 10 * np.log10(targ_median_psd), color='blue', alpha=0.75, label=f'Target')
-    plt.plot(w, 10 * np.log10(gen_median_psd), color='green', alpha=0.75, label=f'Generated')
+    plt.plot(w, 10 * np.log10(targ_median_psd), color='blue', alpha=0.75, label='Target')
+    plt.plot(w, 10 * np.log10(gen_median_psd), color='green', alpha=0.75, label='Generated')
     title_str = {"BGN_quant": "Impulse Probability",
                  "BG": "Impulse Probability",
                  "bandpass": None,
@@ -335,7 +442,7 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
     plt.margins(x=0)
     plt.legend()
     if output_path is not None:
-        plt.savefig(output_path + f"psd_comparison.png", dpi=300)
+        plt.savefig(output_path + "psd_comparison.png", dpi=300)
     plt.clf()
 
     # get PSD distance estimate
