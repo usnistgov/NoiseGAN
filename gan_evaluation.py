@@ -55,7 +55,7 @@ def plot_losses(train_hist_df, save, output_path):
     plt.legend()
     plt.grid(True)
     if save:
-        plt.savefig(output_path + "Gan_training_loss.png", dpi=200)
+        plt.savefig(os.path.join(output_path, "Gan_training_loss.png"), dpi=200)
     plt.close('all')
 
     D_x, D_G_z = train_hist_df["D(x)"], train_hist_df["D(G(z2))"]
@@ -77,7 +77,7 @@ def plot_losses(train_hist_df, save, output_path):
     plt.legend()
     plt.grid(True)
     if save:
-        plt.savefig(output_path + "Gan_D_output.png", dpi=200)
+        plt.savefig(os.path.join(output_path, "Gan_D_output.png"), dpi=200)
     plt.close('all')
 
 
@@ -91,8 +91,8 @@ def plot_waveforms(data, num_waveforms, dataset_name, output_path, save):
     :param save:
     :return:
     """
-    if not os.path.isdir(f"{output_path}waveform_plots/"):
-        os.makedirs(f"{output_path}waveform_plots/")
+    if not os.path.isdir(f"{output_path}/waveform_plots/"):
+        os.makedirs(f"{output_path}/waveform_plots/")
     for i in range(num_waveforms):
         waveform = data[i, :]
         print(f"length of waveform: {len(waveform)}")
@@ -109,7 +109,7 @@ def plot_waveforms(data, num_waveforms, dataset_name, output_path, save):
         plt.ylabel("Amplitude", fontsize=12)
         plt.grid()
         if save:
-            plt.savefig(output_path + f"waveform_plots/{dataset_name}_example_{i}.png", dpi=200)
+            plt.savefig(os.path.join(output_path, f"waveform_plots/{dataset_name}_example_{i}.png"), dpi=200)
         plt.close('all')
 
 
@@ -125,8 +125,9 @@ def plot_spectrograms(data, num_spectrograms, dataset_name, spectrogram_type, ou
     :return:
     """
     wavetype_filename = spectrogram_type.replace(" ", "_")
-    if not os.path.isdir(f"{output_path}{wavetype_filename}_spectrogram_plots/"):
-        os.makedirs(f"{output_path}{wavetype_filename}_spectrogram_plots/")
+    spectrogram_dir = os.path.join(output_path, 'spectrogram_plots')
+    if not os.path.isdir(spectrogram_dir):
+        os.makedirs(spectrogram_dir)
     #if data.shape[1] == 2:
     #    data = data_loading.pack_to_complex(data)
     for i in range(num_spectrograms):
@@ -138,7 +139,7 @@ def plot_spectrograms(data, num_spectrograms, dataset_name, spectrogram_type, ou
         plt.xlabel("Time", fontsize=12)
         plt.ylabel("Frequency", fontsize=12)
         if save:
-            plt.savefig(output_path + f"{wavetype_filename}_spectrogram_plots/{dataset_name}_example_{i}.png", dpi=500)
+            plt.savefig(os.path.join(spectrogram_dir, f'{dataset_name}_example_{i}.png'), dpi=500)
         plt.close('all')
 
 
@@ -184,7 +185,7 @@ def waveform_comparison(gen_data, targ_data, output_path, common_yscale=True):
         plt.subplots_adjust(hspace=0.1, wspace=0.05)
     else:
         plt.subplots_adjust(hspace=0.1)
-    plt.savefig(output_path + "waveform_comp.png", dpi=300)
+    plt.savefig(os.path.join(output_path, "waveform_comp.png"), dpi=300)
     plt.show()
     plt.close('all')
 
@@ -269,25 +270,30 @@ def load_test_distributions(train_specs_dict, G, transformer, device, output_pat
         class_labels_tensor = torch.tensor(targ_labels, dtype=torch.int).to(device)
         gen_data = load_generated(G, n_samples, class_labels_tensor, dataset, batch_size, device)
 
-        if scale_data is not None:
+        if (scale_data is not None) and (quantize is None):
             if transformer is not None:
-                print("Inverse Feature based scaling")
+                print("Inverse feature-based scaling")
                 gen_data_shape = gen_data.shape
                 gen_data = gen_data.reshape(gen_data_shape[0], -1)
                 gen_data = transformer.inverse_transform(gen_data)
                 gen_data = gen_data.reshape(gen_data_shape)
-            else:
-                with open(rf'./Datasets/{dataset}/scale_factors.json', 'r') as F:
-                    channel_scale_factors = json.loads(F.read())
-                    print("IQ Global Min-Max Inverse Scaling")
-                    for i in range(gen_data.shape[1]):
-                        channel_max, channel_min = channel_scale_factors[f"max_{str(i)}"], channel_scale_factors[f"min_{str(i)}"]
-                        feature_max, feature_min = 1, -1
-                        gen_data[:, i, :] = (gen_data[:, i, :] - feature_min) / (feature_max - feature_min)
-                        gen_data[:, i, :] = gen_data[:, i, :] * (channel_max - channel_min) + channel_min
+            elif quantize is None:
+                print("Inverse global Min-Max scaling")
+                dims = (0, 2) if len(gen_data.shape) == 3 else (0, 2, 3)
+                cmin, cmax = np.amin(gen_data, axis=dims),  np.amax(gen_data, axis=dims)
+                if len(gen_data.shape) == 3:
+                    cmin = cmin[np.newaxis, :, np.newaxis]
+                    cmax = cmax[np.newaxis, :, np.newaxis]
+                else:
+                    cmin = cmin[np.newaxis, :, np.newaxis, np.newaxis]
+                    cmax = cmax[np.newaxis, :, np.newaxis, np.newaxis]
+
+                feature_max, feature_min = 1, -1
+                gen_data = (gen_data - feature_min) / (feature_max - feature_min)
+                gen_data = gen_data * (cmax - cmin) + cmin
 
         if quantize is not None:
-            quant_transformer = joblib.load(f'{output_path}/quantize_transformers.gz')
+            quant_transformer = joblib.load(os.path.join(output_path, 'quantize_transformers.gz'))
             gen_data = data_loading.inverse_quantile_transform(gen_data, quant_transformer, type=quantize)
 
         if transform is not None:
@@ -309,7 +315,7 @@ def load_test_distributions(train_specs_dict, G, transformer, device, output_pat
         if pad_length is not None and pad_length > 0:
             gen_data = data_loading.unpad_signal(gen_data, pad_length)
 
-        h5f = h5py.File(f"{output_path}/gen_distribution.h5", "w")
+        h5f = h5py.File(os.path.join(output_path, 'gen_distribution.h5'), "w")
         h5f.create_dataset('test', data=gen_data)
         h5f.close()
 
@@ -329,22 +335,22 @@ def test_gan(G_net, train_hist_df, output_path, device, specs):
     :return: None
     """
     plot_losses(train_hist_df, specs["save_model"], output_path)
-    if os.path.exists(rf'{output_path}/distance_metrics.json'):
+    if os.path.exists(os.path.join(output_path,'distance_metrics.json')):
         with open(rf'{output_path}/distance_metrics.json', 'r') as F:
             metric_dict = json.load(F)
     else:
         metric_dict = {}
         metric_dict["config"] = output_path
     dataset = specs["dataloader_specs"]["dataset_specs"]["data_set"]
-    save = specs["save_model"]
-    data_scaler = joblib.load(f'{output_path}/target_data_scaler.gz')
+    data_scaler = joblib.load(os.path.join(output_path,'target_data_scaler.gz'))
+    print(f'test_gan output path = {output_path}')
     targ_data, gen_data = load_test_distributions(specs, G_net, data_scaler, device, output_path)
 
     plot_waveforms(gen_data, 5, "gen", output_path, True)
     plot_waveforms(targ_data, 5, "targ", output_path, True)
 
     print("Noise Evaluation: ")
-    with open(rf'./Datasets/{dataset}/noise_params.json') as F:
+    with open(os.path.join(f'./Datasets/{dataset}','noise_params.json')) as F:
         noise_dict = json.load(F)
     noise_type = noise_dict['noise_type']
     param_distrib = noise_dict['param_distrib']
@@ -353,8 +359,7 @@ def test_gan(G_net, train_hist_df, output_path, device, specs):
     waveform_comparison(gen_data, targ_data, output_path, common_yscale)
 
     if noise_type == 'FGN' or noise_type == 'FBM' or noise_type == "FDWN":
-        targ_hursts, gen_hursts, hurst_wasserstein = evalnoise.evaluate_fn(targ_data, gen_data, noise_type, 
-                                                                           param_distrib, param_value, output_path)
+        targ_hursts, gen_hursts, hurst_wasserstein = evalnoise.evaluate_fn(targ_data, gen_data, noise_type, output_path)
         metric_dict["targ_hursts"] = np.mean(targ_hursts)
         metric_dict["gen_hursts"] = np.mean(gen_hursts)
         metric_dict["hurst_wasserstein"] = hurst_wasserstein
@@ -390,11 +395,11 @@ def test_gan(G_net, train_hist_df, output_path, device, specs):
 
 
 def retest_gan(dir_path):
-    with open(f'{dir_path}gan_train_config.json', 'r') as fp:
+    with open(os.path.join(dir_path, 'gan_train_config.json'), 'r') as fp:
         train_specs_dict = json.loads(fp.read())
     dataset = train_specs_dict["dataloader_specs"]["dataset_specs"]["data_set"]
     input_length = train_specs_dict["dataloader_specs"]['dataset_specs']["input_length"]
-    train_specs_dict["checkpoint"] = f"{dir_path}checkpoint.tar"
+    train_specs_dict["checkpoint"] = os.path.join(dir_path,'checkpoint.tar')
 
     try:
         x = train_specs_dict["dataloader_specs"]["dataset_specs"]["quantize"]
@@ -402,6 +407,8 @@ def retest_gan(dir_path):
         print("quantile transform = False")
         train_specs_dict["dataloader_specs"]["dataset_specs"]["quantize"] = False
         train_specs_dict['model_specs']['use_tanh'] = True
-    G_net, _, _, _, _, train_hist_df, e_0 = gan_train.init_GAN_model(train_specs_dict, input_length, dir_path, "cpu")
+    G_net, _, _, _, _ = gan_train.init_GAN_model(train_specs_dict, input_length, dir_path, "cpu")
+    train_hist_df = pd.read_csv(os.path.join(dir_path, 'gan_training_history.csv'))
     train_hist_df = pd.DataFrame(train_hist_df)
+    print(f'dir path = {dir_path}')
     test_gan(G_net, train_hist_df, dir_path, "cpu", train_specs_dict)

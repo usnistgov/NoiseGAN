@@ -7,7 +7,6 @@ import joblib
 import warnings
 import numpy as np
 import pandas as pd
-import torch.nn as nn
 import gan_evaluation
 from torch.nn import DataParallel
 from torch.utils.data import DataLoader
@@ -52,40 +51,6 @@ def time_since(t0):
     s -= m * 60
     return m, s
 
-
-def load_GAN_checkpoint(D_net, G_net, optimD, optimG, filepath, output_path, rank):
-    """
-    Load Check-pointed GAN model weights into untrained models and optimizers if a
-    checkpoint path is specified in the config dictionary
-    :param D_net: Discriminator Model
-    :param G_net: Generator Model
-    :param optimD: Discriminator Adam Optimizer
-    :param optimG: Generator Adam Optimizer
-    :param filepath: checkpoint filepath
-    :param output_path: path to directory used for saving model run and evaluation
-    :param rank: NVIDIA GPU device ID number
-    :return: GAN model and optimizers with checkpoint model weights loaded in
-    """
-    if os.path.isfile(filepath):
-        train_hist_df = pd.read_csv(output_path + "gan_training_history.csv", index_col=False)
-        map_loc = f'cuda:{rank}' if rank != "cpu" else rank
-        checkpoint = torch.load(filepath, map_location=f'{rank}')
-        D_net.load_state_dict(checkpoint['D_state_dict'])
-
-        G_state_dict = checkpoint['G_state_dict']
-        for key in list(G_state_dict.keys()):
-            G_state_dict[key.replace('.conv_layer.weight', '.0.weight')] = G_state_dict.pop(key)
-
-        G_net.load_state_dict(G_state_dict)
-        optimD.load_state_dict(checkpoint['optimD_state_dict'])
-        optimG.load_state_dict(checkpoint['optimG_state_dict'])
-        epoch = checkpoint['epoch'] + 1
-    else:
-        train_hist_df = pd.DataFrame([])
-        epoch = 0
-    return D_net, G_net, optimD, optimG, train_hist_df, epoch
-
-
 def save_checkpoint(optimD, optimG, D_net, G_net, epoch, output_path, e=None):
     """
     Save GAN model and optimizer state dictionaries for checkpoints
@@ -129,8 +94,6 @@ def init_GAN_model(specs, input_length, output_path, rank):
     :return optimG: Adam Optimizer for Generator
     :return optimD: Adam Optimizer for Discriminator
     :return specs: updated training configuration dictionary
-    :return train_hist: Training history DataFrame
-    :return e_0: initial epoch to train from checkpoint (default 0)
     """
     # 1D Convolutional GAN model trained on complex time-series waveforms
     if specs["dataloader_specs"]["dataset_specs"]["transform_type"] is None:
@@ -158,14 +121,8 @@ def init_GAN_model(specs, input_length, output_path, rank):
     # Initialize Generator and Discriminator Optimizers
     optimD = torch.optim.Adam(D.parameters(), **specs["optim_params"]['D'])
     optimG = torch.optim.Adam(G.parameters(), **specs["optim_params"]['G'])
-    # Load GAN model checkpoint if one is specified in the configuration dictionary
-    e_0 = 1
-    train_hist = []
-    if specs["checkpoint"] is not None:
-        D, G, optimD, optimG, train_df, e_0 = load_GAN_checkpoint(D, G, optimD, optimG, specs["checkpoint"],
-                                                                  output_path, rank)
-        train_hist = train_df.to_dict('records')
-    return G, D, optimG, optimD, specs, train_hist, e_0
+
+    return G, D, optimG, optimD, specs
 
 
 def gan_train(rank, specs=None, output_path=None):
@@ -188,23 +145,21 @@ def gan_train(rank, specs=None, output_path=None):
     specs["dataloader_specs"]['dataset_specs']["input_length"] = dataset.input_length
     specs["dataloader_specs"]['dataset_specs']["pad_length"] = dataset.pad_length
 
-    joblib.dump(dataset.transformer, f'{output_path}/target_data_scaler.gz')
-    joblib.dump(dataset.quant_transformer, f'{output_path}/quantize_transformers.gz')
+    joblib.dump(dataset.transformer, os.path.join(output_path, 'target_data_scaler.gz'))
+    joblib.dump(dataset.quant_transformer, os.path.join(output_path, 'quantize_transformers.gz'))
 
-    if specs["dataloader_specs"]['dataset_specs']['data_scaler'] == "feature_standard":
-        print("Turning off output tanh activation ")
-        specs['model_specs']['use_tanh'] = False
-
-    if specs['dataloader_specs']['dataset_specs']['quantize']:
+    if specs['dataloader_specs']['dataset_specs']['quantize'] is not None:
         abs_max = torch.max(torch.abs(dataset.dataset)).item()
-        print(f"Training abs-max: {abs_max}")
         specs['model_specs']["max_abs_limit"] = abs_max
         specs['model_specs']['use_tanh'] = True
         specs['model_specs']['quantized'] = True
+        specs['dataloader_specs']['dataset_specs']['data_scaler'] = None
 
     # Initialize new GAN model and optimizers (with option for loading from specified last checkpoint)
-    G_net, D_net, optimG, optimD, specs, train_hist, start_epoch = init_GAN_model(specs, dataset.input_length,
+    G_net, D_net, optimG, optimD, specs = init_GAN_model(specs, dataset.input_length,
                                                                                   output_path, rank)
+    start_epoch = 1
+    train_hist = []
     # Wrap D and G in Data Parallel module for faster training across all GPUs
     print("Single Process Multi-GPU Training (DataParallel)")
     gpu_list = [int(specs["start_gpu"]) + i for i in range(int(specs["num_gpus"]))]
@@ -218,7 +173,7 @@ def gan_train(rank, specs=None, output_path=None):
         print(f"Generator: {G_net}")
         print(f"Discriminator: {D_net}")
     if specs["save_model"] and rank == int(specs["start_gpu"]):
-        with open(output_path + 'gan_train_config.json', 'w') as fp:
+        with open(os.path.join(output_path, 'gan_train_config.json'), 'w') as fp:
             json.dump(specs, fp, cls=gan_evaluation.MyEncoder)
     start_time = time.time()
     num_batches = len(data_loader)
@@ -229,8 +184,8 @@ def gan_train(rank, specs=None, output_path=None):
         epoch_time = time_since(start_time)
         data_loader_iter = iter(data_loader)
         if rank == specs["start_gpu"]:
-            print(f"Epoch #{e}: {epoch_time[0]}m {int(epoch_time[1])}s")
-        current_resolution = None
+            if e % 10 == 0:
+                print(f"Epoch #{e}: {epoch_time[0]}m {int(epoch_time[1])}s")
 
         # GAN batch level training loop
         for i in range(num_batches):
@@ -295,15 +250,15 @@ def gan_train(rank, specs=None, output_path=None):
             report_vars["Loss_G"] = -1 * report_vars["D(G(z2))"]
             report_vars["time_elapsed"] = time_since(start_time)
             train_hist.append(report_vars)
-            if i % report_rate == 0 and rank == specs["start_gpu"]:
+            if e % 10 == 0 and i == 0 and rank == specs["start_gpu"]:
                 print_training_metrics(report_vars, specs['epochs'], len(data_loader))
 
         # Save GAN progress Checkpoints 50 times during training and overwrite current main checkpoint  every 50 epochs for restarts
         if e % 50 == 0 and e > 0 and e != specs['epochs'] - 1 and rank == specs["start_gpu"] and specs["save_model"]:
-            print(f"{e}/{specs['epochs']}: Saving model checkpoint.")
-            save_checkpoint(optimD, optimG, D_net, G_net, e, output_path)
+            #print(f"{e}/{specs['epochs']}: Saving model checkpoint.")
+            #save_checkpoint(optimD, optimG, D_net, G_net, e, output_path)
             train_hist_df = pd.DataFrame(train_hist)
-            train_hist_df.to_csv(output_path + "gan_training_history.csv", index=False)
+            train_hist_df.to_csv(os.path.join(output_path, "gan_training_history.csv"), index=False)
 
     # Training finished: return GAN to evaluation method
     epoch_time = time_since(start_time)
@@ -315,7 +270,7 @@ def gan_train(rank, specs=None, output_path=None):
         train_hist_df = pd.DataFrame(train_hist)
         print("Saving final model checkpoint.")
 
-        train_hist_df.to_csv(output_path + "gan_training_history.csv", index=False)
+        train_hist_df.to_csv(os.path.join(output_path, "gan_training_history.csv"), index=False)
         save_checkpoint(optimD, optimG, D_net, G_net, specs["epochs"], output_path)
 
         if specs["eval_model"]:

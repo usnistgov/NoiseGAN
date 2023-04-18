@@ -1,17 +1,13 @@
 import os
 import h5py
-import json
 import time
 import torch
-import joblib
 import warnings
 import numpy as np
 from scipy import signal
-import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from scipy.stats import truncnorm
 from torch.utils.data import Dataset
-from ssqueezepy._cwt import cwt, icwt
 from sklearn.preprocessing import QuantileTransformer
 
 os.environ['SSQ_GPU'] = '0'
@@ -48,7 +44,7 @@ def pack_to_complex(iq_data):
     return complex_data
 
 
-def scale_dataset(data, data_set=None, scale_type="feature_min_max"):
+def scale_dataset(data, data_set=None, scale_type=None):
     """
     Scale target distribution's range to [-1, 1] with multiple scaling options
     :param scale_type:
@@ -57,35 +53,38 @@ def scale_dataset(data, data_set=None, scale_type="feature_min_max"):
     :return: scaled target distribution
     """
     # Feature Based data scaling:
-    if scale_type.find("feature") != -1:
-        print(f"feature Based Scaling: {scale_type}")
+    if scale_type == "feature_min_max":
+        print("feature-based min_max scaling")
         data_shape = data.shape
         data = data.reshape(data_shape[0], -1)
-        if scale_type.find("min_max") != -1 or scale_type.find("max_abs") != -1:
-            transformer = preprocessing.MaxAbsScaler(copy=False) if scale_type == "feature_max_abs" \
-                else preprocessing.MinMaxScaler(feature_range=(-1, 1), copy=False)
-        else:
-            print("transformation is standardization: ")
-            transformer = preprocessing.StandardScaler()
+        transformer = preprocessing.MinMaxScaler(feature_range=(-1, 1), copy=False)
         print("Performing Fit transform")
         data = transformer.fit_transform(data)
         data = data.reshape(data_shape)
-        return data, transformer
 
     # Global Dataset scaling:
-    elif scale_type.find("global") != -1:
+    elif scale_type == "global_min_max":
+        print("channel-based global min_max scaling")
         transformer = None
-        with open(rf'./Datasets/{data_set}/scale_factors.json', 'r') as F:
-            channel_scale_factors = json.loads(F.read())
-        channel_max = channel_scale_factors["max_0"]
-        channel_min = channel_scale_factors["min_0"]
-        if scale_type == "global_min_max":
-            feature_max, feature_min = 1, -1
-            data = (data - channel_min) / (channel_max - channel_min)
-            data = data * (feature_max - feature_min) + feature_min
+        dims = (0, 2) if len(data.shape) == 3 else (0, 2, 3)
+        cmin, cmax = np.amin(data, axis=dims),  np.amax(data, axis=dims)
+        if len(data.shape) == 3:
+            cmin = cmin[np.newaxis, :, np.newaxis]
+            cmax = cmax[np.newaxis, :, np.newaxis]
         else:
-            data = data / np.max(np.abs([channel_max, channel_min]))
-        return data, transformer
+            cmin = cmin[np.newaxis, :, np.newaxis, np.newaxis]
+            cmax = cmax[np.newaxis, :, np.newaxis, np.newaxis]
+
+        assert(len(cmin.shape) == len(data.shape))
+        feature_max, feature_min = 1, -1
+        data = (data - cmin) / (cmax - cmin)
+        data = data * (feature_max - feature_min) + feature_min
+
+    else:
+        print("WARNING: No scaling applied.")
+        transformer = None
+
+    return data, transformer
 
 
 class TargetDataset(Dataset):
@@ -93,21 +92,20 @@ class TargetDataset(Dataset):
     Wrapper for dictionary dataset that can be easily loaded and used for training through PyTorch's framework.
     Pairs a training example with its label in the format (training example, label)
     """
-    def __init__(self, data_set, data_scaler, pad_signal, num_samples, transform_type="stft", nperseg=128,
-                 noverlap=0.75, fft_shift=False, data_rep="IQ", quantize=False):
+    def __init__(self, data_set, data_scaler, pad_signal, transform_type="stft", nperseg=128,
+                 noverlap=0.5, fft_shift=False, data_rep="IQ", quantize=None):
 
         """
         Load in target distribution, scale data to [-1, 1], and unpack any labels from the data
         :param fft_shift: Shift STFT to be zero-frequency centered
         :param nperseg: STFT FFT window length
         :param transform_type: Convert complex waveform to STFT
-        :param num_samples: Number of samples to load from the target distribution
         :param pad_signal: Length of zero padding target distribution waveforms
         :param data_set: Name of dataset
         :param data_scaler: Name of scaling function option
         :return: PyTorch tensors
         """
-        print(f"Loading in target distribution from /Datasets/{data_set}/train.h5")
+        print(f"Loading in target distribution from ./Datasets/{data_set}/train.h5")
         start_time = time.time()
         h5f = h5py.File(rf"./Datasets/{data_set}/train.h5", 'r')
         dataset = h5f['train'][:]
@@ -160,7 +158,7 @@ def get_latent_vectors(batch_size, latent_size, latent_type="gaussian", device="
     if latent_type == "gaussian":
         z = torch.randn(batch_size, latent_size, 1, device=device)
     elif latent_type == "uniform":
-        z = torch.from_numpy(np.random.uniform(1.0, 1.0, (batch_size, latent_size, 1))).float().to(device)
+        z = torch.from_numpy(np.random.uniform(low=-1.0, high=1.0, size=(batch_size, latent_size, 1))).float().to(device)
     else:
         truncate = 1.0
         lower_trunc_val = -1 * truncate
@@ -282,6 +280,7 @@ def waveform_to_frequency(dataset, type="stft", fs=2, nperseg=128, noverlap=0.5)
     onesided = False if dataset.dtype == complex else True
     signal_length = dataset.shape[1]
     num_samples = dataset.shape[0]
+    print(f'signal_lengh = {signal_length}, num_samples = {num_samples}, nperseg = {nperseg}, noverlap = {noverlap}')
     time_resolution = int(signal_length / (nperseg * (1 - noverlap))) + 1
     freq_resolution = (nperseg // 2) + 1 if onesided else nperseg
     transform_dataset = np.zeros((num_samples, freq_resolution, time_resolution), dtype=complex)

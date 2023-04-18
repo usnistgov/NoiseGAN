@@ -7,6 +7,8 @@ Date: June 2022
 """
 
 import os
+import sys
+sys.path.insert(0, "./")
 import json
 import h5py
 import numpy as np
@@ -41,8 +43,6 @@ def create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands
     dataset : numpy array
         Dataset array of dimension (num_samples, signal_length+1),
         where the first column contains class labels.
-    scale_coeffs : dict
-        Dictionary of scale coefficients.
     sos_coeffs : dict
         Dictionary of SOS IIR filter coefficients.
 
@@ -86,12 +86,7 @@ def create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands
         dataset[k, :] = filtered_white_noise
     class_labels = np.reshape(class_labels, (num_samples, 1))
     dataset = np.hstack((class_labels, dataset))
-    scale_coeffs = {}
-    channel_max = dataset[1:, :].max()
-    channel_min = dataset[1:, :].min()
-    scale_coeffs['max_0'] = channel_max
-    scale_coeffs['min_0'] = channel_min
-    return dataset, scale_coeffs, sos_coeffs
+    return dataset, sos_coeffs
 
 
 def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=None):
@@ -109,7 +104,7 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
         Options: 'fixed', 'uniform', 'multimodal'
     pulse_type : str
         Shot noise pulse shape.
-        Pptions: 'one_sided_exponential', 'linear_exponential', 'gaussian'
+        Options: 'one_sided_exponential', 'linear_exponential', 'gaussian'
     amp_distrib : string
        String specifying pulse amplitude distribution.
        Options: 'exponential', 'rayleigh', 'standard_normal'
@@ -122,8 +117,6 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
     dataset : numpy array
         Data array of dimension (num_samples, signal_length+1),
         where the first column contains parameter values
-    scale_coeffs : dict
-        Dictionary of scale coefficients.
 
     """
     sigma_d = 1  # pulse duration
@@ -153,12 +146,8 @@ def create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp
                                                sigma_d, beta, theta)
     param_values = np.reshape(event_rates, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
-    scale_coeffs = {}
-    channel_max = dataset[1:, :].max()
-    channel_min = dataset[1:, :].min()
-    scale_coeffs['max_0'] = channel_max
-    scale_coeffs['min_0'] = channel_min
-    return dataset, scale_coeffs
+
+    return dataset
 
 
 def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=None, sig_w=0.1, sig_i=1):
@@ -188,8 +177,6 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
     dataset : numpy array
         Dataset array of dimension (num_samples, signal_length+1), where
         the first column contains parameter values
-    scale_coeffs : dict
-        Dictionary of scale coefficients.
 
     """
 
@@ -217,12 +204,8 @@ def create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=No
 
     param_values = np.reshape(impulse_probs, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
-    scale_coeffs = {}
-    channel_max = dataset[1:, :].max()
-    channel_min = dataset[1:, :].min()
-    scale_coeffs['max_0'] = channel_max
-    scale_coeffs['min_0'] = channel_min
-    return dataset, scale_coeffs
+
+    return dataset
 
 
 def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
@@ -247,8 +230,6 @@ def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
     dataset : numpy array
         Dataset array of dimension (num_samples, signal_length+1),
         where the first column contains parameter values.
-    scale_coeffs : dict
-        Dictionary of scale coefficients.
 
     """
     if param_distrib == 'fixed':
@@ -275,12 +256,8 @@ def create_sas_dataset(num_samples, signal_length, param_distrib, alpha=None):
 
     param_values = np.reshape(alphas, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
-    scale_coeffs = {}
-    channel_max = dataset[1:, :].max()
-    channel_min = dataset[1:, :].min()
-    scale_coeffs['max_0'] = channel_max
-    scale_coeffs['min_0'] = channel_min
-    return dataset, scale_coeffs
+
+    return dataset
 
 
 def create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, Hurst_index=None):
@@ -308,8 +285,6 @@ def create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, Hur
     dataset : numpy array
         Dataset array of dimension (num_samples, signal_length+1),
         where the first column contains parameter values.
-    scale_coeffs : dict
-        Dictionary of scale coefficients.
 
     """
     if 'fixed' in param_distrib:
@@ -360,16 +335,12 @@ def create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, Hur
 
     param_values = np.reshape(param_values, (num_samples, 1))
     dataset = np.hstack((param_values, dataset))
-    scale_coeffs = {}
-    channel_max = dataset[1:, :].max()
-    channel_min = dataset[1:, :].min()
-    scale_coeffs['max_0'] = channel_max
-    scale_coeffs['min_0'] = channel_min
-    return dataset, scale_coeffs
+
+    return dataset
 
 
 def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib,
-                 param_value=None, num_bands=8, band_index=None,
+                 param_value=None, num_bands=None, band_index=None,
                  pulse_type=None, amp_distrib=None):
     """
     Save noise dataset to specified directory.
@@ -393,7 +364,7 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
         For options, see method above corresponding to specified noise type.
         The default is None.
     num_bands : int, optional
-        Number of bands for bandpass noise. The default is 8.
+        Number of bands for bandpass noise. The default is None.
     band_index : int, optional
         Index of band to use with `single' param_distrib setting for bandpass noise.
         The default is None.
@@ -408,35 +379,34 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
 
     """
     if noise_type == 'bandpass':
-        train_dataset, scale_coeffs, sos_coeffs = create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands, band_index)
-        test_dataset, _, _ = create_bp_noise_dataset(num_samples // 4, signal_length, param_distrib, num_bands, band_index)
-        dir_path = data_dir + rf'{noise_type}_{num_bands}_bands'
+        train_dataset, sos_coeffs = create_bp_noise_dataset(num_samples, signal_length, param_distrib, num_bands, band_index)
+        test_dataset, _ = create_bp_noise_dataset(num_samples // 4, signal_length, param_distrib, num_bands, band_index)
         if param_distrib == 'single':
-            dir_path = dir_path + '_band' + str(band_index)
+            dir_path = os.path.join(data_dir, f'band{band_index}')
         else:
-            dir_path = dir_path + '_all'
+            dir_path = os.path.join(data_dir, 'all_bands')
     elif noise_type == 'shot':
-        train_dataset, scale_coeffs = create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=param_value)
-        test_dataset, _ = create_sn_dataset(num_samples // 4, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=param_value)
-        dir_path = data_dir + rf'{noise_type}_{pulse_type}_{amp_distrib}_{param_distrib}'
+        train_dataset = create_sn_dataset(num_samples, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=param_value)
+        test_dataset = create_sn_dataset(num_samples // 4, signal_length, param_distrib, pulse_type, amp_distrib, event_rate=param_value)
+        dir_path = os.path.join(data_dir, f'{noise_type}_{pulse_type}_{amp_distrib}_{param_distrib}')
         if param_distrib == 'fixed':
             dir_path = dir_path + '_ER' + str(int(param_value*100))
     elif noise_type == 'BG':
-        train_dataset, scale_coeffs = create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=param_value)
-        test_dataset, _ = create_bg_dataset(num_samples // 4, signal_length, param_distrib, impulse_prob=param_value)
-        dir_path = data_dir + rf'{noise_type}_{param_distrib}'
+        train_dataset = create_bg_dataset(num_samples, signal_length, param_distrib, impulse_prob=param_value)
+        test_dataset = create_bg_dataset(num_samples // 4, signal_length, param_distrib, impulse_prob=param_value)
+        dir_path = os.path.join(data_dir, f'{noise_type}_{param_distrib}')
         if param_distrib == 'fixed':
             dir_path = dir_path + '_IP' + str(int(param_value*100))
     elif noise_type == 'SAS':
-        train_dataset, scale_coeffs = create_sas_dataset(num_samples, signal_length, param_distrib, alpha=param_value)
-        test_dataset, _ = create_sas_dataset(num_samples // 4, signal_length, param_distrib, alpha=param_value)
-        dir_path = data_dir + rf'{noise_type}_{param_distrib}'
+        train_dataset = create_sas_dataset(num_samples, signal_length, param_distrib, alpha=param_value)
+        test_dataset = create_sas_dataset(num_samples // 4, signal_length, param_distrib, alpha=param_value)
+        dir_path = os.path.join(data_dir, f'{noise_type}_{param_distrib}')
         if param_distrib == 'fixed':
             dir_path = dir_path + '_alpha' + str(int(param_value*100))
     else:  # fractional noise type
-        train_dataset, scale_coeffs = create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, param_value)
-        test_dataset, _ = create_fn_dataset(num_samples // 4, signal_length, noise_type, param_distrib, param_value)
-        dir_path = data_dir + rf'{noise_type}_{param_distrib}'
+        train_dataset = create_fn_dataset(num_samples, signal_length, noise_type, param_distrib, param_value)
+        test_dataset = create_fn_dataset(num_samples // 4, signal_length, noise_type, param_distrib, param_value)
+        dir_path = os.path.join(data_dir, f'{noise_type}_{param_distrib}')
         if param_distrib == 'fixed':
             dir_path = dir_path + '_H' + str(int(param_value*100))
 
@@ -452,8 +422,6 @@ def save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib
     h5f = h5py.File(rf'{dir_path}/test.h5', 'w')
     h5f.create_dataset('train', data=test_dataset)
     h5f.close()
-    with open(rf'{dir_path}/scale_factors.json', 'w') as F:
-        F.write(json.dumps(scale_coeffs))
     with open(rf'{dir_path}/noise_params.json', 'w') as F:
         F.write(json.dumps(noise_dict))
     if noise_type == 'bandpass':
@@ -479,17 +447,21 @@ class MyEncoder(json.JSONEncoder):
 
 def main():
     # make datasets
-    data_dir = r'./Datasets/'
+    parent_data_dir = r'./Datasets/'
     num_samples = 16384  # number of samples in training set. Test set has 1/4
     signal_length = 4096
     num_bands = 8  # number of bands for bandpass noise
 
-    for noise_type in ['FGN']:  # 'FDWN', 'FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS'
+    for noise_type in ['FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS']:  #'FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS'
+        data_dir = os.path.join(parent_data_dir, noise_type)
+        if not os.path.isdir(data_dir):
+            os.makedirs(data_dir)
+
         if noise_type == 'bandpass':
             for param_distrib in ['single']:
                 if param_distrib == 'single':
                     for num in range(num_bands):
-                        print(f'saving  BP noise dataset {num} of {num_bands}')
+                        print(f'computing  BP noise dataset {num} of {num_bands}')
                         band_index = num
                         save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib,
                                      num_bands=num_bands, band_index=band_index)
@@ -497,11 +469,11 @@ def main():
                     save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib, num_bands=num_bands)
         elif noise_type == 'shot':
             for param_distrib in ['fixed']:  # 'uniform', 'multimodal',
-                for pulse_type in ['one_sided_exponential', 'linear_exponential', 'gaussian']:
+                for pulse_type in ['one_sided_exponential', 'gaussian']: # 'linear_exponential'
                     for amp_distrib in ['exponential']:  # 'rayleigh', 'standard_normal'
                         if param_distrib == 'fixed':
                             for count, param_value in enumerate(np.arange(0.25, 3.25, 0.25)):
-                                print(f'saving  shot noise dataset {count+1} of 12')
+                                print(f'computing  shot noise dataset {count+1} of 12')
                                 save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib, param_value,
                                              pulse_type=pulse_type, amp_distrib=amp_distrib)
                         else:
@@ -511,7 +483,7 @@ def main():
              for param_distrib in ['fixed']:  # 'uniform', 'multimodal'
                  if param_distrib == 'fixed':
                             for count, param_value in enumerate([.01, .05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]):
-                                print(f'saving  BG noise dataset {count+1} of 12')
+                                print(f'computing  BG noise dataset {count+1} of 12')
                                 save_dataset(data_dir, num_samples,
                                              signal_length, noise_type,
                                              param_distrib, param_value)
@@ -522,7 +494,7 @@ def main():
              for param_distrib in ['fixed']:  # 'uniform', 'multimodal'
                  if param_distrib == 'fixed':
                             for count, param_value in enumerate(np.linspace(.5, 1.5, 11)):
-                                print(f'saving  SAS noise dataset {count+1} of 11')
+                                print(f'computing  SAS noise dataset {count+1} of 11')
                                 save_dataset(data_dir, num_samples,
                                              signal_length, noise_type,
                                              param_distrib, param_value)
@@ -532,7 +504,7 @@ def main():
             for param_distrib in ['fixed']:  # 'uniform_low', 'uniform_high',  'multimodal_low', 'multimodal_high',
                 if param_distrib == 'fixed':
                     for count, param_value in enumerate([.05, .1, .2, .3, .4, .5, .6, .7, .8, .9, .95]):
-                        print(f'saving  {noise_type} noise dataset {count+1} of 11')
+                        print(f'computing  {noise_type} noise dataset {count+1} of 11')
                         save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib, param_value)
                 else:
                     save_dataset(data_dir, num_samples, signal_length, noise_type, param_distrib)

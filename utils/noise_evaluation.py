@@ -4,6 +4,7 @@ Module for evaluating generated noise datasets.
 
 """
 
+import os
 import json
 import h5py
 import scipy
@@ -63,7 +64,7 @@ def evaluate_bp_noise(gen_data, gen_labels, targ_data, targ_labels, save_path):
     plt.ylabel('Power Spectral Density')
     plt.grid()
     if save_path is not None:
-        plt.savefig(save_path + 'PSD_plot.png', dpi=300)
+        plt.savefig(os.path.join(save_path, 'PSD_plot.png'), dpi=300)
         plt.close('all')
     plt.clf()
 
@@ -112,7 +113,7 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
             gen_H_estimates.append(gen_dfrac)
     print()
     param_dists = {"target": targ_H_estimates, "generated": gen_H_estimates}
-    with open(output_path + 'parameter_value_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
 
@@ -123,11 +124,11 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
     plt.xlabel("Estimated Hurst Indices")
     plt.ylabel("Count")
     if output_path is not None:
-        plt.savefig(output_path + "hurst_histogram.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "hurst_histogram.png"), dpi=300)
     plt.clf()
 
     param_dists = {"target": targ_H_estimates, "generated": gen_H_estimates}
-    with open(output_path + 'parameter_value_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     # Get Hurst Earth Movers distance:
@@ -189,7 +190,7 @@ def evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, outpu
     gen_median_acf = np.median(np.array(gen_Rxxs), axis=0)
 
     param_dists = {"target": targ_nu_ests, "generated": gen_nu_ests}
-    with open(output_path + 'parameter_value_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     # get event rate earth movers distance:
@@ -203,7 +204,7 @@ def evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, outpu
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + "event_rate_hists.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "event_rate_hists.png"), dpi=300)
     plt.clf()
 
     plt.plot(tau, targ_median_acf, color='blue', alpha=0.7, label='Target Median ACF')
@@ -213,7 +214,7 @@ def evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, outpu
     plt.legend()
     plt.tight_layout()
     if output_path is not None:
-        plt.savefig(output_path + "acf_comparison.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "acf_comparison.png"), dpi=300)
     plt.clf()
     return gen_median_nu_est, targ_median_nu_est, event_rate_dist
 
@@ -274,11 +275,11 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     gen_amp_ratio_median = np.median(np.array(gen_amp_ratios), axis=0)
 
     param_dists = {"target": targ_prob_ests, "generated": gen_prob_ests}
-    with open(output_path + 'parameter_value_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     param_dists = {"target": targ_amp_ratios, "generated": gen_amp_ratios}
-    with open(output_path + 'parameter_amp_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_amp_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     # get event rate earth movers distance:
@@ -293,7 +294,7 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + "impulse_prob.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "impulse_prob.png"), dpi=300)
     plt.clf()
 
     bins = np.histogram(np.hstack((gen_amp_ratios, targ_amp_ratios)), bins=50)[1]  # get the bin edges
@@ -303,7 +304,7 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + "amplitude_ratio.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "amplitude_ratio.png"), dpi=300)
     plt.clf()
 
     return targ_prob_median, gen_prob_median, targ_amp_ratio_median, gen_amp_ratio_median, \
@@ -355,12 +356,12 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     gen_alpha_median = np.median(np.array(gen_alpha_ests), axis=0)
 
     param_dists = {"target": targ_alpha_ests, "generated": gen_alpha_ests}
-    with open(output_path + 'parameter_value_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     param_dists = {"target": targ_gamma_ests, "generated": gen_gamma_ests}
     print("save Gamma estimates")
-    with open(output_path + 'parameter_scale_distributions.json', 'w') as f:
+    with open(os.path.join(output_path, 'parameter_scale_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
     gen_alpha_ests = [x for x in gen_alpha_ests if not np.isnan(x)]
@@ -374,7 +375,7 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     plt.legend()
     plt.grid()
     if output_path is not None:
-        plt.savefig(output_path + "alpha_ests.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "alpha_ests.png"), dpi=300)
     plt.clf()
     return targ_alpha_median, gen_alpha_median, alpha_dist
 
@@ -442,7 +443,7 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
     plt.margins(x=0)
     plt.legend()
     if output_path is not None:
-        plt.savefig(output_path + "psd_comparison.png", dpi=300)
+        plt.savefig(os.path.join(output_path, "psd_comparison.png"), dpi=300)
     plt.clf()
 
     # get PSD distance estimate

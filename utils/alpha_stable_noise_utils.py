@@ -14,7 +14,7 @@ from spectrum import pmtm
 from scipy import stats
 from scipy.special import gamma
 from numpy import pi
-import levy  # available at https://github.com/josemiotto/pylevy
+import levy  # available at https://github.com/josemiotto/levy
 rng = default_rng()
 
 
@@ -194,8 +194,8 @@ def main():
     iqr_alpha_est = stats.iqr(alpha_est, axis=1)
     median_gamma_est = np.median(gamma_est, axis=1)
     iqr_gamma_est = stats.iqr(gamma_est, axis=1)
-    median_delta_est = np.median(delta_est, axis=1)
-    iqr_delta_est = stats.iqr(delta_est, axis=1)
+    #median_delta_est = np.median(delta_est, axis=1)
+    #iqr_delta_est = stats.iqr(delta_est, axis=1)
 
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7))
     ax1.plot(true_alpha, alpha_est.flatten(), 'o', alpha = 0.05, label = 'alpha estimates')
