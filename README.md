@@ -9,11 +9,6 @@ modeling of noise time series.  Specifically, it includes Pytorch implementation
  - generalized shot noise, including options for different pulse types and pulse amplitude distributions
  - impulsive noise, including Bernoulli-Gaussian (BG) and symmetric alpha stable (SAS) distributions
 
-For experiment details and results, see 
-
-A. Wunderlich, J.Sklar, “Data-Driven Modeling of Noise Time Series with
-Convolutional Generative Adversarial Networks,” _submitted_. Preprint: https://arxiv.org/abs/2207.01110
-
 ## Getting Started
 The software enables automated testing of many model configurations across
 different datasets.  Model creation and training is implemented using the Pytorch
@@ -46,11 +41,6 @@ Packages in our python environment are documented by `conda_requirements.yaml` a
 
 To use methods for generating and evaluating fractionally differenced white noise (FDWN), it is necessary to uncomment the assocciated block of package imports at the top of `./utils/fractional_noise_utils.py`.  The FDWN methods utilize the `arfima` package in R, which can be run from python using the interface provided by the python `rpy2` package.  Therefore, using any methods for FDWN requires installing R and the `arfima` R package.
 
-## <u>Authors</u>
-Jack Sklar (jack.sklar@nist.gov), Adam Wunderlich (adam.wunderlich@nist.gov)  \
-Communications Technology Laboratory \
-National Institute of Standards and Technology \
-Boulder, Colorado
 
 ## <u>Licensing Statement</u>
 This software was developed by employees of the National Institute of Standards and Technology (NIST), an

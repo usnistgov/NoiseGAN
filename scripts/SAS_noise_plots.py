@@ -26,7 +26,9 @@ SAS_dataset_paths = ["SAS_fixed_alpha50/", "SAS_fixed_alpha60/", "SAS_fixed_alph
                      "SAS_fixed_alpha90/", "SAS_fixed_alpha100/", "SAS_fixed_alpha110/", "SAS_fixed_alpha120/",
                      "SAS_fixed_alpha130/", "SAS_fixed_alpha140/", "SAS_fixed_alpha150/"]
 
-c0, c1, c2, c3, c4 = "#000000", "#0072B2", "#009E73", "#D55E00", "#CC79A7"
+c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
+     "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
+c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
 
 #%%
 

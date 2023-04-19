@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import utils.fractional_noise_utils as fn
 
+separate_FGN_FBM_plots = False
 plot_path = "../paper_plots/"
 FGN_parent_path = "../model_results/FGN/"
 FBM_parent_path = "../model_results/FBM/"
@@ -20,7 +21,9 @@ FBM_dataset_paths = ["FBM_fixed_H5/", "FBM_fixed_H10/", "FBM_fixed_H20/", "FBM_f
 if not os.path.exists(plot_path):
    os.makedirs(plot_path)
 
-c0, c1, c2, c3, c4 = "#000000", "#0072B2", "#009E73", "#D55E00", "#CC79A7"
+c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
+     "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
+c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
 
 #%%
 FGN_stft_paths = []
@@ -77,47 +80,48 @@ metrics_df.to_csv(plot_path + "powerlaw_results.csv", index=False)
 
 #%%
 
-noise_types = ["FGN"]
-x_labels = [r"$H$"]
-noise_titles = ["Fractional Gaussian Noise"]
-ranges = {"FGN": [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]}
-fig, axs = plt.subplots(nrows=2, sharex=True)
-fig.set_figheight(7)
-fig.set_figwidth(5)
+if separate_FGN_FBM_plots:
+    noise_types = ["FGN"]
+    x_labels = [r"$H$"]
+    noise_titles = ["Fractional Gaussian Noise"]
+    ranges = {"FGN": [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]}
+    fig, axs = plt.subplots(nrows=2, sharex=True)
+    fig.set_figheight(7)
+    fig.set_figwidth(5)
 
-for i, (noise_type, x_label, noise_title) in enumerate(zip(noise_types, x_labels, noise_titles)):
-    parameter_range = ranges[noise_type]
-    model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
-    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
-    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
-    stft_dists, target_dists, wave_dists = [], [], []
-    for _, stft_run in stft_metrics_df.iterrows():
-        f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
-        stft_param_dists = json.loads(f.read())
-        target_dists.append(stft_param_dists["target"])
-        stft_dists.append(stft_param_dists["generated"])
-    for _, wave_run in wave_metrics_df.iterrows():
-        f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
-        wave_param_dists = json.loads(f.read())
-        wave_dists.append(wave_param_dists["generated"])
+    for i, (noise_type, x_label, noise_title) in enumerate(zip(noise_types, x_labels, noise_titles)):
+        parameter_range = ranges[noise_type]
+        model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+        stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+        wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+        stft_dists, target_dists, wave_dists = [], [], []
+        for _, stft_run in stft_metrics_df.iterrows():
+            f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
+            stft_param_dists = json.loads(f.read())
+            target_dists.append(stft_param_dists["target"])
+            stft_dists.append(stft_param_dists["generated"])
+        for _, wave_run in wave_metrics_df.iterrows():
+            f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
+            wave_param_dists = json.loads(f.read())
+            wave_dists.append(wave_param_dists["generated"])
 
 
-    box_range = list(range(len(stft_dists)))
-    target_range = [pos - 0.2 for pos in box_range]
-    wave_range = box_range
-    stft_range = [pos + 0.2 for pos in box_range]
+        box_range = list(range(len(stft_dists)))
+        target_range = [pos - 0.2 for pos in box_range]
+        wave_range = box_range
+        stft_range = [pos + 0.2 for pos in box_range]
 
-    box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
-                  loc='upper left', fontsize=12)
+        box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
+                      loc='upper left', fontsize=12)
     axs[1].set_xlabel(fr"True {x_label}", fontsize=14)
     axs[1].set_ylabel(fr"Estimated {x_label}", fontsize=14)
     axs[1].grid(True)
@@ -139,79 +143,76 @@ for i, (noise_type, x_label, noise_title) in enumerate(zip(noise_types, x_labels
     axs[0].grid()
     axs[0].legend(loc = 'upper center', fontsize=12)
 
-plt.tight_layout()
-#plt.subplots_adjust(hspace=0.05, wspace=0.15)
-plt.savefig(os.path.join(plot_path, 'FGN_combined_plot.png'), dpi=600)
-plt.show()
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_path, 'FGN_combined_plot.png'), dpi=600)
+    plt.show()
 
-#%%
-fig, axs = plt.subplots(nrows=2, sharex=True)
-fig.set_figheight(7)
-fig.set_figwidth(5)
-parameter_range = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
-model_metrics_df = metrics_df[metrics_df["noise_type"] == "FBM"]
-stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
-wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
-stft2_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan2"]
-stft_dists, stft2_dists, target_dists, wave_dists = [], [], [], []
-for _, stft_run in stft_metrics_df.iterrows():
-    f = open(os.path.join(stft_run["config"], 'parameter_value_distributions.json'), "r")
-    stft_param_dists = json.loads(f.read())
-    target_dists.append(stft_param_dists["target"])
-    stft_dists.append(stft_param_dists["generated"])
-for _, wave_run in wave_metrics_df.iterrows():
-    f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
-    wave_param_dists = json.loads(f.read())
-    wave_dists.append(wave_param_dists["generated"])
-for _, stft2_run in stft2_metrics_df.iterrows():
-    f = open(os.path.join(stft2_run["config"], 'parameter_value_distributions.json'), "r")
-    stft_param_dists = json.loads(f.read())
-    stft2_dists.append(stft_param_dists["generated"])
+    fig, axs = plt.subplots(nrows=2, sharex=True)
+    fig.set_figheight(7)
+    fig.set_figwidth(5)
+    parameter_range = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+    model_metrics_df = metrics_df[metrics_df["noise_type"] == "FBM"]
+    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+    stft2_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan2"]
+    stft_dists, stft2_dists, target_dists, wave_dists = [], [], [], []
+    for _, stft_run in stft_metrics_df.iterrows():
+        f = open(os.path.join(stft_run["config"], 'parameter_value_distributions.json'), "r")
+        stft_param_dists = json.loads(f.read())
+        target_dists.append(stft_param_dists["target"])
+        stft_dists.append(stft_param_dists["generated"])
+    for _, wave_run in wave_metrics_df.iterrows():
+        f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
+        wave_param_dists = json.loads(f.read())
+        wave_dists.append(wave_param_dists["generated"])
+    for _, stft2_run in stft2_metrics_df.iterrows():
+        f = open(os.path.join(stft2_run["config"], 'parameter_value_distributions.json'), "r")
+        stft_param_dists = json.loads(f.read())
+        stft2_dists.append(stft_param_dists["generated"])
 
-box_range = list(range(len(stft_dists)))
-target_range = [pos - 0.3 for pos in box_range]
-wave_range = [pos - 0.1 for pos in box_range]
-stft_range = [pos + 0.1 for pos in box_range]
-stft2_range = [pos + 0.3 for pos in box_range]
-box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
-                      capprops=dict(color="black"), whiskerprops=dict(color="black"))
-box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
-                      capprops=dict(color="black"), whiskerprops=dict(color="black"))
-box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                      boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
-                      capprops=dict(color="black"), whiskerprops=dict(color="black"))
-box4 = axs[1].boxplot(stft2_dists, showfliers=False, positions=stft2_range, widths=0.2, notch=True, patch_artist=True,
-                         boxprops=dict(facecolor=c4, color=c4, alpha=1), medianprops=dict(color='black'),
-                         capprops=dict(color="black"), whiskerprops=dict(color="black"))
-axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0], box4["boxes"][0]],
-                 ['Target', 'WaveGAN', 'STFT-GAN (65x65)', 'STFT-GAN (129x65)'],
-                 loc='upper left', fontsize=12)
-axs[1].set_ylabel("Estimated $H$", fontsize=14)
-axs[1].grid(True)
-axs[1].xaxis.set_ticks_position('none')
-axs[1].xaxis.set_ticklabels([])
-axs[1].set_yticks(np.arange(-0.25,2, 0.25))
-axs[1].tick_params(axis='both', which='major', labelsize=11)
-axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
-         label="WaveGAN", linewidth=2)
-axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
-               label='STFT-GAN (65x65)', linewidth=2)
-axs[0].plot(box_range, stft2_metrics_df["geodesic_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
-               label="STFT-GAN (129x65)", linewidth=2)
-axs[0].set_title("Fractional Brownian Motion", fontsize=14)
-axs[0].set_xticks(box_range)
-axs[0].set_xticklabels(parameter_range)
-axs[0].tick_params(axis='both', which='major', labelsize=11)
-axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
-axs[1].set_xlabel("True $H$", fontsize=14)
-axs[0].grid()
-axs[0].legend(fontsize=12)
-plt.tight_layout()
-#plt.subplots_adjust(hspace=0.05, wspace=0.15)
-plt.savefig(os.path.join(plot_path, 'FBM_combined_plot.png'), dpi=600)
-plt.show()
+    box_range = list(range(len(stft_dists)))
+    target_range = [pos - 0.3 for pos in box_range]
+    wave_range = [pos - 0.1 for pos in box_range]
+    stft_range = [pos + 0.1 for pos in box_range]
+    stft2_range = [pos + 0.3 for pos in box_range]
+    box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
+                          boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
+                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
+    box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
+                          boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
+                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
+    box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
+                          boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
+                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
+    box4 = axs[1].boxplot(stft2_dists, showfliers=False, positions=stft2_range, widths=0.2, notch=True, patch_artist=True,
+                             boxprops=dict(facecolor=c4, color=c4, alpha=1), medianprops=dict(color='black'),
+                             capprops=dict(color="black"), whiskerprops=dict(color="black"))
+    axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0], box4["boxes"][0]],
+                     ['Target', 'WaveGAN', 'STFT-GAN (65x65)', 'STFT-GAN (129x65)'],
+                     loc='upper left', fontsize=12)
+    axs[1].set_ylabel("Estimated $H$", fontsize=14)
+    axs[1].grid(True)
+    axs[1].xaxis.set_ticks_position('none')
+    axs[1].xaxis.set_ticklabels([])
+    axs[1].set_yticks(np.arange(-0.25,2, 0.25))
+    axs[1].tick_params(axis='both', which='major', labelsize=11)
+    axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
+             label="WaveGAN", linewidth=2)
+    axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
+                   label='STFT-GAN (65x65)', linewidth=2)
+    axs[0].plot(box_range, stft2_metrics_df["geodesic_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
+                   label="STFT-GAN (129x65)", linewidth=2)
+    axs[0].set_title("Fractional Brownian Motion", fontsize=14)
+    axs[0].set_xticks(box_range)
+    axs[0].set_xticklabels(parameter_range)
+    axs[0].tick_params(axis='both', which='major', labelsize=11)
+    axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
+    axs[1].set_xlabel("True $H$", fontsize=14)
+    axs[0].grid()
+    axs[0].legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_path, 'FBM_combined_plot.png'), dpi=600)
+    plt.show()
 
 #%%
 

@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0,'../')
 import utils.shot_noise_utils as sn
 
+separate_SNOE_SNGE_plots = False
 plot_path = '../paper_plots/'
 if not os.path.exists(plot_path):
    os.makedirs(plot_path)
@@ -29,7 +30,9 @@ SNOE_dataset_paths = ["shot_one_sided_exponential_exponential_fixed_ER25/", "sho
                       "shot_one_sided_exponential_exponential_fixed_ER225/", "shot_one_sided_exponential_exponential_fixed_ER250/",
                       "shot_one_sided_exponential_exponential_fixed_ER275/", "shot_one_sided_exponential_exponential_fixed_ER300/"]
 
-c0, c1, c2, c3, c4 = "#000000", "#0072B2", "#009E73", "#D55E00", "#CC79A7"
+c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
+     "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
+c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
 
 #%%
 SNGE_stft_paths = []
@@ -79,136 +82,166 @@ metrics_df = pd.DataFrame(df_temp)
 metrics_df.to_csv(os.path.join(plot_path, "shotnoise_results.csv"), index=False)
 
 #%%
+# plot example time series and pdfs of target data
 
-fig, axs = plt.subplots(nrows=2, sharex=True, figsize = (5,7))
-noise_types = ["SNOE"]
-noise_titles = ["One-Sided Exponential Pulse Type"]
-parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
+titlefont = 16
+axislabelfont1 = 16
+axislabelfont2 = 18
+ticklabelfont1 = 14
+ticklabelfont2 = 16
+legendfont = 16
 
-for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
-    model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
-    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
-    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
-    stft_dists, target_dists, wave_dists = [], [], []
-    for _, stft_run in stft_metrics_df.iterrows():
-        f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
-        stft_param_dists = json.loads(f.read())
-        target_dists.append(stft_param_dists["target"])
-        stft_dists.append(stft_param_dists["generated"])
-    for _, wave_run in wave_metrics_df.iterrows():
-        f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
-        wave_param_dists = json.loads(f.read())
-        wave_dists.append(wave_param_dists["generated"])
+signal_length = 4096
+t_ind = np.arange(signal_length)
 
-    box_range = list(range(len(stft_dists)))
-    target_range = [pos - 0.2 for pos in box_range]
-    wave_range = box_range
-    stft_range = [pos + 0.2 for pos in box_range]
-
-    box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
-                  loc='upper left', fontsize=14)
-    axs[1].set_xlabel(r"True $\nu$", fontsize=14)
-    axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
-    axs[1].grid(True)
-    axs[1].xaxis.set_ticks_position('none')
-    axs[1].xaxis.set_ticklabels([])
-    axs[1].tick_params(axis='x', which='major', labelsize=10.5)
-    axs[1].tick_params(axis='y', which='major', labelsize=11)
-    axs[1].set_ylim((0,5))
-
-    axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
-                color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-    axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
-                color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN")
-    axs[0].set_ylim((0, 2.3))
-    axs[0].set_title(noise_title, fontsize=14)
-    axs[0].set_xticks(box_range)
-    axs[0].set_xticklabels(parameter_range)
-    axs[0].tick_params(axis='both', which='major', labelsize=11)
-    axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
-    axs[0].grid()
-    axs[0].legend(fontsize=14)
-
-plt.tight_layout()
-plt.subplots_adjust(hspace=0.05, wspace=0.15)
-plt.savefig(os.path.join(plot_path, 'SNOE_combined_plot.png'), dpi=600)
-plt.show()
+# shot noise --------------------------
+tau_d = 1  # pulse duration
+beta = 1  # mean pulse amplitude
+theta = 0.1  # normalized time step = delta_t/tau_d
+pulse_type = 'one_sided_exponential'
+amp_distrib = 'exponential'
+event_rate = [0.25, 0.5, 2]
+fig2, axs = plt.subplots(len(event_rate), 1, sharex=True, sharey=True, figsize=(8, 5))
+for k, er in enumerate(event_rate):
+    sn_time_series = sn.simulate_shot_noise(signal_length, pulse_type, amp_distrib, er, tau_d, beta, theta)
+    axs[k].plot(t_ind,sn_time_series)
+    #axs[k].set_title(fr'$\nu$={er}', fontsize=titlefont)
+    axs[k].grid(True)
+    axs[k].tick_params(labelsize=ticklabelfont1)
+fig2.tight_layout(pad=3, h_pad=0.1)
+fig2.supxlabel('Time Index', fontsize=axislabelfont1)
+fig2.supylabel('Amplitude', fontsize=axislabelfont1)
+fig2.savefig(os.path.join(plot_path, 'sn_examples.png'))
 
 #%%
 
-fig, axs = plt.subplots(nrows=2, sharex=True)
-fig.set_figheight(7)
-fig.set_figwidth(5)
-noise_types = ["SNGE"]
-noise_titles = ["Gaussian Pulse Type"]
-parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
+if separate_SNOE_SNGE_plots:
 
-for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
-    model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
-    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
-    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
-    stft_dists, target_dists, wave_dists = [], [], []
-    for _, stft_run in stft_metrics_df.iterrows():
-        f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
-        stft_param_dists = json.loads(f.read())
-        target_dists.append(stft_param_dists["target"])
-        stft_dists.append(stft_param_dists["generated"])
-    for _, wave_run in wave_metrics_df.iterrows():
-        f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
-        wave_param_dists = json.loads(f.read())
-        wave_dists.append(wave_param_dists["generated"])
+    fig, axs = plt.subplots(nrows=2, sharex=True, figsize = (5,7))
+    noise_types = ["SNOE"]
+    noise_titles = ["One-Sided Exponential Pulse Type"]
+    parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
 
-    box_range = list(range(len(stft_dists)))
-    target_range = [pos - 0.2 for pos in box_range]
-    wave_range = box_range
-    stft_range = [pos + 0.2 for pos in box_range]
+    for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
+        model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+        stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+        wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+        stft_dists, target_dists, wave_dists = [], [], []
+        for _, stft_run in stft_metrics_df.iterrows():
+            f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
+            stft_param_dists = json.loads(f.read())
+            target_dists.append(stft_param_dists["target"])
+            stft_dists.append(stft_param_dists["generated"])
+        for _, wave_run in wave_metrics_df.iterrows():
+            f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
+            wave_param_dists = json.loads(f.read())
+            wave_dists.append(wave_param_dists["generated"])
 
-    box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
-                          boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
-                          capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
-                  loc='upper left', fontsize=14)
-    axs[1].set_xlabel(r"True $\nu$", fontsize=14)
-    axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
-    axs[1].grid(True)
-    axs[1].xaxis.set_ticks_position('none')
-    axs[1].xaxis.set_ticklabels([])
-    axs[1].tick_params(axis='x', which='major', labelsize=10.5)
-    axs[1].tick_params(axis='y', which='major', labelsize=11)
-    axs[1].set_ylim((0,5))
+        box_range = list(range(len(stft_dists)))
+        target_range = [pos - 0.2 for pos in box_range]
+        wave_range = box_range
+        stft_range = [pos + 0.2 for pos in box_range]
 
-    axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
-                color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-    axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
-                color=c3, linestyle="-", alpha=1,linewidth=2, label="STFT-GAN")
-    axs[0].set_ylim((0, 2.3))
-    axs[0].set_title(noise_title, fontsize=14)
-    axs[0].set_xticks(box_range)
-    axs[0].set_xticklabels(parameter_range)
-    axs[0].tick_params(axis='both', which='major', labelsize=11)
-    axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
-    axs[0].grid()
-    axs[0].legend(fontsize=14)
+        box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
+                      loc='upper left', fontsize=14)
+        axs[1].set_xlabel(r"True $\nu$", fontsize=14)
+        axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
+        axs[1].grid(True)
+        axs[1].xaxis.set_ticks_position('none')
+        axs[1].xaxis.set_ticklabels([])
+        axs[1].tick_params(axis='x', which='major', labelsize=10.5)
+        axs[1].tick_params(axis='y', which='major', labelsize=11)
+        axs[1].set_ylim((0,5))
 
-plt.tight_layout()
-#plt.subplots_adjust(hspace=0.05, wspace=0.15)
-plt.savefig(os.path.join(plot_path, 'SNGE_combined_plot.png'), dpi=600)
-plt.show()
+        axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+                    color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
+        axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+                    color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN")
+        axs[0].set_ylim((0, 2.3))
+        axs[0].set_title(noise_title, fontsize=14)
+        axs[0].set_xticks(box_range)
+        axs[0].set_xticklabels(parameter_range)
+        axs[0].tick_params(axis='both', which='major', labelsize=11)
+        axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
+        axs[0].grid()
+        axs[0].legend(fontsize=14)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_path, 'SNOE_combined_plot.png'), dpi=600)
+    plt.show()
+
+    fig, axs = plt.subplots(nrows=2, sharex=True)
+    fig.set_figheight(7)
+    fig.set_figwidth(5)
+    noise_types = ["SNGE"]
+    noise_titles = ["Gaussian Pulse Type"]
+    parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
+
+    for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
+        model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+        stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+        wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+        stft_dists, target_dists, wave_dists = [], [], []
+        for _, stft_run in stft_metrics_df.iterrows():
+            f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
+            stft_param_dists = json.loads(f.read())
+            target_dists.append(stft_param_dists["target"])
+            stft_dists.append(stft_param_dists["generated"])
+        for _, wave_run in wave_metrics_df.iterrows():
+            f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
+            wave_param_dists = json.loads(f.read())
+            wave_dists.append(wave_param_dists["generated"])
+
+        box_range = list(range(len(stft_dists)))
+        target_range = [pos - 0.2 for pos in box_range]
+        wave_range = box_range
+        stft_range = [pos + 0.2 for pos in box_range]
+
+        box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
+                      loc='upper left', fontsize=14)
+        axs[1].set_xlabel(r"True $\nu$", fontsize=14)
+        axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
+        axs[1].grid(True)
+        axs[1].xaxis.set_ticks_position('none')
+        axs[1].xaxis.set_ticklabels([])
+        axs[1].tick_params(axis='x', which='major', labelsize=10.5)
+        axs[1].tick_params(axis='y', which='major', labelsize=11)
+        axs[1].set_ylim((0,5))
+
+        axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+                    color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
+        axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+                    color=c3, linestyle="-", alpha=1,linewidth=2, label="STFT-GAN")
+        axs[0].set_ylim((0, 2.3))
+        axs[0].set_title(noise_title, fontsize=14)
+        axs[0].set_xticks(box_range)
+        axs[0].set_xticklabels(parameter_range)
+        axs[0].tick_params(axis='both', which='major', labelsize=11)
+        axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
+        axs[0].grid()
+        axs[0].legend(fontsize=14)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_path, 'SNGE_combined_plot.png'), dpi=600)
+    plt.show()
 
 #%%
 
@@ -371,35 +404,3 @@ fig.subplots_adjust(hspace=0.2, wspace=0.3)
 fig.align_ylabels(axs[:,0])
 fig.savefig(output_path, dpi=600)
 fig.show()
-
-#%%
-# plot example time series and pdfs of target data
-
-titlefont = 16
-axislabelfont1 = 16
-axislabelfont2 = 18
-ticklabelfont1 = 14
-ticklabelfont2 = 16
-legendfont = 16
-
-signal_length = 4096
-t_ind = np.arange(signal_length)
-
-# shot noise --------------------------
-tau_d = 1  # pulse duration
-beta = 1  # mean pulse amplitude
-theta = 0.1  # normalized time step = delta_t/tau_d
-pulse_type = 'one_sided_exponential'
-amp_distrib = 'exponential'
-event_rate = [0.25, 0.5, 2]
-fig2, axs = plt.subplots(len(event_rate), 1, sharex=True, sharey=True, figsize=(8, 5))
-for k, er in enumerate(event_rate):
-    sn_time_series = sn.simulate_shot_noise(signal_length, pulse_type, amp_distrib, er, tau_d, beta, theta)
-    axs[k].plot(t_ind,sn_time_series)
-    #axs[k].set_title(fr'$\nu$={er}', fontsize=titlefont)
-    axs[k].grid(True)
-    axs[k].tick_params(labelsize=ticklabelfont1)
-fig2.tight_layout(pad=3, h_pad=0.1)
-fig2.supxlabel('Time Index', fontsize=axislabelfont1)
-fig2.supylabel('Amplitude', fontsize=axislabelfont1)
-fig2.savefig(os.path.join(plot_path, 'sn_examples.png'))
