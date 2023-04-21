@@ -21,7 +21,7 @@ BG_dataset_paths = ["BG_fixed_IP1/", "BG_fixed_IP5/", "BG_fixed_IP10/", "BG_fixe
 
 c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
      "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
-c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
+c1, c2, c3, c4 =  c[2], c[6], c[10], c[12]
 
 #%%
 

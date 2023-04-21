@@ -18,7 +18,7 @@ from labellines import labelLines
 
 c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
      "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
-c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
+c1, c2, c3, c4 =  c[2], c[6], c[10], c[12]
 
 #%%
 
@@ -143,7 +143,7 @@ for num in range(num_bands):
                               fs=sampling_frequency, output='sos')
     sos_coeffs[num] = sos
     w, h = signal.sosfreqz(sos)
-    ax1.plot(w/(2*np.pi), 20*np.log10(np.abs(h)), linewidth=3, label = str(num))
+    ax1.plot(w/(2*np.pi), 20*np.log10(np.abs(h)), linewidth=3, label = str(num), color = '#3b3b3b')
 labelLines(ax1.get_lines(), xvals = np.arange(0.02, 0.5, .066), fontsize=14)
 ax1.grid(True)
 ax1.set_xlim([0,0.5])

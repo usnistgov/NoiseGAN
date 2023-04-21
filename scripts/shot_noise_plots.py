@@ -32,7 +32,9 @@ SNOE_dataset_paths = ["shot_one_sided_exponential_exponential_fixed_ER25/", "sho
 
 c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
      "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
-c1, c2, c3, c4 =  c[0], c[10], c[6], c[12]
+c1, c2, c3, c4 =  c[2], c[6], c[10], c[12]
+
+#c1, c2, c3, c4 = ['#c44601', '#f57600', '#0073e6', '#054fb9']
 
 #%%
 SNGE_stft_paths = []
