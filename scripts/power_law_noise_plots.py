@@ -253,7 +253,7 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
                 color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
     axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
-                color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN")
+                color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN (65x65)")
     axs[0, 0].set_ylabel("Geodesic PSD Distance", fontsize=14)
     axs[0, i].set_title(noise_title, fontsize=14)
     axs[0, i].xaxis.set_ticks_position('none')
