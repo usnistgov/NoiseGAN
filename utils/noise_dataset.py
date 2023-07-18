@@ -452,7 +452,7 @@ def main():
     signal_length = 4096
     num_bands = 8  # number of bands for bandpass noise
 
-    for noise_type in ['FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS']:  #'FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS'
+    for noise_type in ['FGN', 'FBM', 'bandpass', 'shot', 'BG', 'SAS']:  #'FGN', 'FBM', 'FDWN', 'bandpass', 'shot', 'BG', 'SAS'
         data_dir = os.path.join(parent_data_dir, noise_type)
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)

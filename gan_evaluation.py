@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import utils.noise_evaluation as evalnoise
+import utils.dtw_psd_fidelity_diversity as fd
 
 
 class MyEncoder(json.JSONEncoder):
@@ -38,12 +39,12 @@ def plot_losses(train_hist_df, save, output_path):
     :param train_hist_df: Dataframe containing batch-level training metrics
     :param model_name: String Name of Model
     :param save: Boolean whether to save results_plots, or plot to console
-    :param output_path: Path to save results_plots to
+    :param output_path: Path to save results_plots
     :return: None
     """
     D_loss, G_loss = train_hist_df["Loss_D"], train_hist_df["Loss_G"]
     fig, ax1 = plt.subplots(1, 1)
-    ax1.set_title(f"GAN Training Loss")
+    ax1.set_title("GAN Training Loss")
     plt.plot(range(len(D_loss)), D_loss, color="red", alpha=0.4, label="Discriminator Loss")
     plt.plot(range(len(G_loss)), G_loss, color="blue", alpha=0.4, label="Generator Loss")
     D_loss_ma = D_loss.rolling(window=int(len(D_loss) / 100)).mean()
@@ -60,7 +61,7 @@ def plot_losses(train_hist_df, save, output_path):
 
     D_x, D_G_z = train_hist_df["D(x)"], train_hist_df["D(G(z2))"]
     fig, ax1 = plt.subplots(1, 1)
-    ax1.set_title(f"Critic Output")
+    ax1.set_title("Critic Output")
     plt.plot(range(len(D_x)), D_x, color="red", alpha=0.4, label="D(x)")
     plt.plot(range(len(D_G_z)), D_G_z, color="blue", alpha=0.4, label="D(G(z))")
     D_x_ma = D_x.rolling(window=int(len(D_x) / 100)).mean()
@@ -124,7 +125,6 @@ def plot_spectrograms(data, num_spectrograms, dataset_name, spectrogram_type, ou
     :param save: Save figures to the save directory
     :return:
     """
-    wavetype_filename = spectrogram_type.replace(" ", "_")
     spectrogram_dir = os.path.join(output_path, 'spectrogram_plots')
     if not os.path.isdir(spectrogram_dir):
         os.makedirs(spectrogram_dir)
@@ -218,27 +218,40 @@ def load_generated(G, n_samples, class_labels, dataset, batch_size, device):
     gen_data = gen_data[:n_samples] if len(gen_data) > n_samples else gen_data
     return gen_data
 
-
-def load_target(dataset, d_type, dist_name):
+def load_target(target_path, dataset, d_type, dist_name):
     """
     Load target distribution from h5 file and process it into the proper format
+    :param target_path: path to target distribution directory
     :param dataset: Dataset name
     :param d_type: Data-type (Complex/float)
-    :param dist_name: Distribution name (Test/validation)
+    :param dist_name: Distribution name (train/test)
     :return: Target distribution, and supporting info
     """
-    h5f = h5py.File(f"./Datasets/{dataset}/{dist_name}.h5", 'r')
+    h5f = h5py.File(os.path.join(target_path, f"{dataset}/{dist_name}.h5"), 'r')
     targ_dataset = h5f['train'][:]
     h5f.close()
     targ_data = np.array(targ_dataset[:, 1:]).astype(d_type)
-    targ_labels = np.array(np.real(targ_dataset[:, 0])).astype(int)
+    targ_labels = np.array(np.real(targ_dataset[:, 0]))
     n_samples = len(targ_data)
     return targ_data, targ_labels, n_samples
 
-
-def load_test_distributions(train_specs_dict, G, transformer, device, output_path):
+def load_gen_test_distribution(model_path, train_specs_dict):
     """
-    Load in Generated and Target test distributions used for evaluation of GAN performance
+    Load generated test distribution from h5 file.
+    :param model_path: path to model directory
+    :param train_specs_dict: dictionary of model parameters
+    :return: gen_data: generated test data
+    """
+
+    print("loading presaved gen-distribution")
+    h5f = h5py.File(os.path.join(model_path, 'gen_distribution.h5'), 'r')
+    gen_data = h5f['test'][:]
+    h5f.close()
+    return gen_data
+
+def generate_test_distribution(train_specs_dict, G, transformer, device, output_path):
+    """
+    Generate test distribution for GAN evaluations
     :param train_specs_dict: GAN configuration dictionary
     :param G: Generator model
     :param transformer: data scaler-transformer model
@@ -247,168 +260,183 @@ def load_test_distributions(train_specs_dict, G, transformer, device, output_pat
     :return: Test distributions (Target/Generated)
     """
     dataset = train_specs_dict["dataloader_specs"]["dataset_specs"]["data_set"]
-    d_type = float  # assuming real-valued target data
-    targ_data, targ_labels, n_samples = load_target(dataset, d_type, "test")
+    d_type = np.double  # assuming real-valued target data
+    targ_data, targ_labels, n_samples = load_target(output_path, dataset, d_type, "test")
 
-    if os.path.exists(f"{output_path}/gen_distribution.h5"):
-        print("loading presaved gen-distribution")
-        h5f = h5py.File(f"{output_path}/gen_distribution.h5", 'r')
-        gen_data = h5f['test'][:]
-        h5f.close()
+    print("Creating new gen-distribution")
+    pad_length = train_specs_dict['dataloader_specs']['dataset_specs']["pad_length"]
+    transform = train_specs_dict['dataloader_specs']['dataset_specs']["transform_type"]
+    nperseg = train_specs_dict['dataloader_specs']['dataset_specs']["nperseg"]
+    noverlap = train_specs_dict['dataloader_specs']['dataset_specs']["noverlap"]
+    fft_shift = train_specs_dict["dataloader_specs"]["dataset_specs"]["fft_shift"]
+    data_rep = train_specs_dict['dataloader_specs']['dataset_specs']["data_rep"]
+    batch_size = train_specs_dict['dataloader_specs']['batch_size']
+    quantize = train_specs_dict['dataloader_specs']['dataset_specs']["quantize"]
+    scale_data = train_specs_dict['dataloader_specs']['dataset_specs']["data_scaler"]
+
+    class_labels_tensor = torch.tensor(targ_labels, dtype=torch.int).to(device)
+    gen_data = load_generated(G, n_samples, class_labels_tensor, dataset, batch_size, device)
+
+    if (scale_data is not None) and (quantize is None):
+        if transformer is not None:
+            print("Inverse feature-based scaling")
+            gen_data_shape = gen_data.shape
+            gen_data = gen_data.reshape(gen_data_shape[0], -1)
+            gen_data = transformer.inverse_transform(gen_data)
+            gen_data = gen_data.reshape(gen_data_shape)
+        elif quantize is None:
+            print("Inverse global Min-Max scaling")
+            dims = (0, 2) if len(gen_data.shape) == 3 else (0, 2, 3)
+            cmin, cmax = np.amin(gen_data, axis=dims),  np.amax(gen_data, axis=dims)
+            if len(gen_data.shape) == 3:
+                cmin = cmin[np.newaxis, :, np.newaxis]
+                cmax = cmax[np.newaxis, :, np.newaxis]
+            else:
+                cmin = cmin[np.newaxis, :, np.newaxis, np.newaxis]
+                cmax = cmax[np.newaxis, :, np.newaxis, np.newaxis]
+
+            feature_max, feature_min = 1, -1
+            gen_data = (gen_data - feature_min) / (feature_max - feature_min)
+            gen_data = gen_data * (cmax - cmin) + cmin
+
+    if quantize is not None:
+        quant_transformer = joblib.load(os.path.join(output_path, 'quantize_transformers.gz'))
+        gen_data = data_loading.inverse_quantile_transform(gen_data, quant_transformer, type=quantize)
+
+    if transform is not None:
+        plot_spectrograms(gen_data, 5, "Gen", "", output_path, True)
+        if data_rep != "IQ":
+            gen_data = data_loading.phase_magnitude_to_iq(gen_data, data_rep)
+        gen_data = data_loading.pack_to_complex(gen_data)
+        if fft_shift:
+            gen_data = np.fft.ifftshift(gen_data, axes=(1,))
+        oneside = True   # assuming real-valued target data
+        gen_data = data_loading.frequency_to_waveform(gen_data, type="stft", fs=2, nperseg=nperseg, noverlap=noverlap, onesided=oneside)
+        if oneside:
+            gen_data = np.real(gen_data)
     else:
-        print("Creating new gen-distribution")
-        pad_length = train_specs_dict['dataloader_specs']['dataset_specs']["pad_length"]
-        transform = train_specs_dict['dataloader_specs']['dataset_specs']["transform_type"]
-        nperseg = train_specs_dict['dataloader_specs']['dataset_specs']["nperseg"]
-        noverlap = train_specs_dict['dataloader_specs']['dataset_specs']["noverlap"]
-        fft_shift = train_specs_dict["dataloader_specs"]["dataset_specs"]["fft_shift"]
-        data_rep = train_specs_dict['dataloader_specs']['dataset_specs']["data_rep"]
-        batch_size = train_specs_dict['dataloader_specs']['batch_size']
-        quantize = train_specs_dict['dataloader_specs']['dataset_specs']["quantize"]
-        scale_data = train_specs_dict['dataloader_specs']['dataset_specs']["data_scaler"]
-
-        class_labels_tensor = torch.tensor(targ_labels, dtype=torch.int).to(device)
-        gen_data = load_generated(G, n_samples, class_labels_tensor, dataset, batch_size, device)
-
-        if (scale_data is not None) and (quantize is None):
-            if transformer is not None:
-                print("Inverse feature-based scaling")
-                gen_data_shape = gen_data.shape
-                gen_data = gen_data.reshape(gen_data_shape[0], -1)
-                gen_data = transformer.inverse_transform(gen_data)
-                gen_data = gen_data.reshape(gen_data_shape)
-            elif quantize is None:
-                print("Inverse global Min-Max scaling")
-                dims = (0, 2) if len(gen_data.shape) == 3 else (0, 2, 3)
-                cmin, cmax = np.amin(gen_data, axis=dims),  np.amax(gen_data, axis=dims)
-                if len(gen_data.shape) == 3:
-                    cmin = cmin[np.newaxis, :, np.newaxis]
-                    cmax = cmax[np.newaxis, :, np.newaxis]
-                else:
-                    cmin = cmin[np.newaxis, :, np.newaxis, np.newaxis]
-                    cmax = cmax[np.newaxis, :, np.newaxis, np.newaxis]
-
-                feature_max, feature_min = 1, -1
-                gen_data = (gen_data - feature_min) / (feature_max - feature_min)
-                gen_data = gen_data * (cmax - cmin) + cmin
-
-        if quantize is not None:
-            quant_transformer = joblib.load(os.path.join(output_path, 'quantize_transformers.gz'))
-            gen_data = data_loading.inverse_quantile_transform(gen_data, quant_transformer, type=quantize)
-
-        if transform is not None:
-            plot_spectrograms(gen_data, 5, "Gen", "", output_path, True)
-            if data_rep != "IQ":
-                gen_data = data_loading.phase_magnitude_to_iq(gen_data, data_rep)
+        if len(gen_data.shape) >= 3 and gen_data.shape[1] == 1:
+            gen_data = gen_data.squeeze(axis=1)
+        elif len(gen_data.shape) >= 3 and gen_data.shape[1] == 2:
             gen_data = data_loading.pack_to_complex(gen_data)
-            if fft_shift:
-                gen_data = np.fft.ifftshift(gen_data, axes=(1,))
-            oneside = True   # assuming real-valued target data
-            gen_data = data_loading.frequency_to_waveform(gen_data, type="stft", fs=2, nperseg=nperseg, noverlap=noverlap, onesided=oneside)
-            if oneside:
-                gen_data = np.real(gen_data)
-        else:
-            if len(gen_data.shape) >= 3 and gen_data.shape[1] == 1:
-                gen_data = gen_data.squeeze(axis=1)
-            elif len(gen_data.shape) >= 3 and gen_data.shape[1] == 2:
-                gen_data = data_loading.pack_to_complex(gen_data)
-        if pad_length is not None and pad_length > 0:
-            gen_data = data_loading.unpad_signal(gen_data, pad_length)
+    if pad_length is not None and pad_length > 0:
+        gen_data = data_loading.unpad_signal(gen_data, pad_length)
 
-        h5f = h5py.File(os.path.join(output_path, 'gen_distribution.h5'), "w")
-        h5f.create_dataset('test', data=gen_data)
-        h5f.close()
+    h5f = h5py.File(os.path.join(output_path, 'gen_distribution.h5'), "w")
+    h5f.create_dataset('test', data=gen_data)
+    h5f.close()
 
     assert gen_data.shape == targ_data.shape, f"Generated and Target test distributions are not the same: " \
                                               f"Gen {gen_data.shape} =/= Targ {targ_data.shape}"
     return targ_data, gen_data
 
 
-def test_gan(G_net, train_hist_df, output_path, device, specs):
+def test_gan(model_path, train_specs_dict, target_dir= './Datasets', G_net=None, train_hist_df=None, device=None):
     """
-    Evaluate performance of Generator and save performance metrics results_plots/ tables
-    :param G_net: Generator model
-    :param train_hist_df: Dataframe of batch-level training KPIs
-    :param output_path: Path to save directory
-    :param device: GPU device ID number
-    :param specs: GAN configuraion dictionary
+    Evaluate performance of Generator and save performance metrics.
+    If optional G_net argument is empty, then pre-generated test data is used.
+    :param model_path: Path to model directory
+    :param train_specs_dict: GAN configuration dictionary
+    :param target_dir: path to target distribution data
+    :param G_net: Generator model (optional)
+    :param train_hist_df: Dataframe of batch-level training KPIs (optional)
+    :param device: 'cpu' or GPU device ID number (optional)
     :return: None
     """
-    plot_losses(train_hist_df, specs["save_model"], output_path)
-    if os.path.exists(os.path.join(output_path,'distance_metrics.json')):
-        with open(rf'{output_path}/distance_metrics.json', 'r') as F:
-            metric_dict = json.load(F)
-    else:
-        metric_dict = {}
-        metric_dict["config"] = output_path
-    dataset = specs["dataloader_specs"]["dataset_specs"]["data_set"]
-    data_scaler = joblib.load(os.path.join(output_path,'target_data_scaler.gz'))
-    print(f'test_gan output path = {output_path}')
-    targ_data, gen_data = load_test_distributions(specs, G_net, data_scaler, device, output_path)
 
-    plot_waveforms(gen_data, 5, "gen", output_path, True)
-    plot_waveforms(targ_data, 5, "targ", output_path, True)
+    dataset = train_specs_dict["dataloader_specs"]["dataset_specs"]["data_set"]
+    metric_dict = {}
+    metric_dict["config"] = model_path
+    if G_net is not None:
+        # plot losses and generate test data from G_net
+        print("generating test set")
+        plot_losses(train_hist_df, train_specs_dict["save_model"], model_path)
+        data_scaler = joblib.load(os.path.join(model_path,'target_data_scaler.gz'))
+        targ_data, gen_data = generate_test_distribution(train_specs_dict, G_net, data_scaler, device, model_path)
+        plot_waveforms(gen_data, 5, "gen", model_path, True)
+        plot_waveforms(targ_data, 5, "targ", model_path, True)
+    else:
+        # load pre-generated test data
+        print("loading pre-generated test set")
+        d_type = np.double  # assuming real-valued target data
+        targ_data, targ_labels, n_samples = load_target(target_dir, dataset, d_type, "test")
+        gen_data = load_gen_test_distribution(model_path, train_specs_dict)
 
     print("Noise Evaluation: ")
-    with open(os.path.join(f'./Datasets/{dataset}','noise_params.json')) as F:
+    with open(os.path.join(target_dir, f'{dataset}/noise_params.json')) as F:
         noise_dict = json.load(F)
     noise_type = noise_dict['noise_type']
-    param_distrib = noise_dict['param_distrib']
     param_value = noise_dict['param_value']
     common_yscale = False if noise_type == 'FBM' or noise_type == 'SAS' else True
-    waveform_comparison(gen_data, targ_data, output_path, common_yscale)
+    waveform_comparison(gen_data, targ_data, model_path, common_yscale)
 
     if noise_type == 'FGN' or noise_type == 'FBM' or noise_type == "FDWN":
-        targ_hursts, gen_hursts, hurst_wasserstein = evalnoise.evaluate_fn(targ_data, gen_data, noise_type, output_path)
-        metric_dict["targ_hursts"] = np.mean(targ_hursts)
-        metric_dict["gen_hursts"] = np.mean(gen_hursts)
-        metric_dict["hurst_wasserstein"] = hurst_wasserstein
+        targ_hursts, gen_hursts, hurst_wasserstein = evalnoise.evaluate_fn(targ_data, gen_data, noise_type, model_path)
+        metric_dict["targ_median_hurst"] = np.median(targ_hursts)
+        metric_dict["gen_median_hurst"] = np.median(gen_hursts)
+        metric_dict["hurst_wasserstein_dist"] = hurst_wasserstein
+
     if noise_type == "shot":
         pulse_type = noise_dict["pulse_type"]
         amp_distrib = noise_dict["amp_distrib"]
         gen_median_event_rate, targ_median_event_rate, event_rate_wasserstein = \
-            evalnoise.evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, output_path)
+            evalnoise.evaluate_sn(targ_data, gen_data, pulse_type, amp_distrib, param_value, model_path)
         metric_dict["gen_median_event_rate"] = gen_median_event_rate
         metric_dict["targ_median_event_rate"] = targ_median_event_rate
         metric_dict["event_rate_wasserstein"] = event_rate_wasserstein
 
     if noise_type == "SAS":
-        gen_median_alpha, targ_median_alpha, alpha_dist = evalnoise.evaluate_sas_noise(targ_data, gen_data, param_value, output_path)
+        gen_median_alpha, targ_median_alpha, alpha_dist = evalnoise.evaluate_sas_noise(targ_data, gen_data, param_value, model_path)
         metric_dict["gen_median_alpha"] = gen_median_alpha
         metric_dict["targ_median_alpha"] = targ_median_alpha
         metric_dict["alpha_dist"] = alpha_dist
 
     if noise_type == "BG":
-        print("Evaluate BG:")
         targ_prob_median, gen_prob_median, targ_amp_ratio_median, gen_amp_ratio_median, \
-        impulse_prob_dist, amp_ratio_dist = evalnoise.evaluate_bgn(targ_data, gen_data, param_value, output_path)
+        impulse_prob_dist, amp_ratio_dist = evalnoise.evaluate_bgn(targ_data, gen_data, param_value, model_path)
         metric_dict["targ_prob_median"] = targ_prob_median
         metric_dict["gen_prob_median"] = gen_prob_median
         metric_dict["targ_amp_ratio_median"] = targ_amp_ratio_median
         metric_dict["gen_amp_ratio_median"] = gen_amp_ratio_median
         metric_dict["impulse_prob_dist"] = impulse_prob_dist
         metric_dict["amp_ratio_dist"] = amp_ratio_dist
-    psd_dist = evalnoise.eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path)
-    metric_dict["geodesic_psd_dist"] = psd_dist
-    with open(rf'{output_path}/distance_metrics.json', 'w') as F:
+
+    median_psd_dist = evalnoise.eval_psd_distances(targ_data, gen_data, model_path)
+
+    dtw_dist_matrix_targ, dtw_dist_matrix_targ_gen = fd.get_dtw_distance_matrices(model_path, targ_data, gen_data, window_size=32)
+    dtw_density, dtw_coverage = fd.compute_density_coverage_metrics(dtw_dist_matrix_targ, dtw_dist_matrix_targ_gen, k=10)
+
+    sample_size = targ_data.shape[0]
+    [dtw_coverage_L, dtw_coverage_U] = fd.wilson_score_interval(dtw_coverage, sample_size, alpha=0.05)
+    [dtw_density_L, dtw_density_U] = fd.density_bootstrap_CI(dtw_dist_matrix_targ, dtw_dist_matrix_targ_gen,
+                                                  num_bootstrap_samples= 10000,
+                                                  batch_size = 200, alpha=0.05)
+
+    metric_dict['dtw_density'] = dtw_density
+    metric_dict['dtw_density_95perc_CI'] = (dtw_density_L, dtw_density_U)
+    metric_dict['dtw_coverage'] = dtw_coverage
+    metric_dict['dtw_coverage_95perc_CI'] = (dtw_coverage_L, dtw_coverage_U)
+    metric_dict['median_psd_dist'] = median_psd_dist
+
+    with open(os.path.join(model_path, 'summary_metrics.json'), 'w') as F:
         F.write(json.dumps(metric_dict, cls=MyEncoder))
 
 
-def retest_gan(dir_path):
-    with open(os.path.join(dir_path, 'gan_train_config.json'), 'r') as fp:
+def retest_gan(model_path, target_dir='./Datasets'):
+    with open(os.path.join(model_path, 'gan_train_config.json'), 'r') as fp:
         train_specs_dict = json.loads(fp.read())
-    dataset = train_specs_dict["dataloader_specs"]["dataset_specs"]["data_set"]
-    input_length = train_specs_dict["dataloader_specs"]['dataset_specs']["input_length"]
-    train_specs_dict["checkpoint"] = os.path.join(dir_path,'checkpoint.tar')
 
-    try:
-        x = train_specs_dict["dataloader_specs"]["dataset_specs"]["quantize"]
-    except KeyError:
-        print("quantile transform = False")
-        train_specs_dict["dataloader_specs"]["dataset_specs"]["quantize"] = False
-        train_specs_dict['model_specs']['use_tanh'] = True
-    G_net, _, _, _, _ = gan_train.init_GAN_model(train_specs_dict, input_length, dir_path, "cpu")
-    train_hist_df = pd.read_csv(os.path.join(dir_path, 'gan_training_history.csv'))
-    train_hist_df = pd.DataFrame(train_hist_df)
-    print(f'dir path = {dir_path}')
-    test_gan(G_net, train_hist_df, dir_path, "cpu", train_specs_dict)
+    if os.path.isfile(os.path.join(model_path, 'gen_distribution.h5')):
+        # retest with previously generated test set
+        test_gan(model_path, train_specs_dict, target_dir)
+    else:
+        # retest gan model saved in a checkpoint.tar file
+        with open(os.path.join(model_path, 'gan_train_config.json'), 'r') as fp:
+            train_specs_dict = json.loads(fp.read())
+        input_length = train_specs_dict["dataloader_specs"]['dataset_specs']["input_length"]
+        train_specs_dict["checkpoint"] = os.path.join(model_path,'checkpoint.tar')
+        G_net, _, _, _, _ = gan_train.init_GAN_model(train_specs_dict, input_length, model_path, "cpu")
+        train_hist_df = pd.read_csv(os.path.join(model_path, 'gan_training_history.csv'))
+        train_hist_df = pd.DataFrame(train_hist_df)
+        print(f'model path = {model_path}')
+        test_gan(model_path, train_specs_dict, target_dir, G_net, train_hist_df, "cpu")

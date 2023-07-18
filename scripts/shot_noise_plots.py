@@ -14,8 +14,8 @@ plot_path = '../paper_plots/'
 if not os.path.exists(plot_path):
    os.makedirs(plot_path)
 
-SNGE_parent_path = "../model_results/shot/"
-SNOE_parent_path = "../model_results/shot/"
+SNGE_parent_path = "/data/noise-gan/model_results/shot/"
+SNOE_parent_path = "/data/noise-gan/model_results/shot/"
 
 SNGE_dataset_paths = ["shot_gaussian_exponential_fixed_ER25/", "shot_gaussian_exponential_fixed_ER50/",
                       "shot_gaussian_exponential_fixed_ER75/", "shot_gaussian_exponential_fixed_ER100/",
@@ -71,7 +71,7 @@ model_types = ["wavegan", "stftgan", "wavegan", "stftgan"]
 df_temp = []
 for test_set, noise_set, model in zip(test_set_groups, noise_set_names, model_types):
     for model_path in test_set:
-        with open(os.path.join(model_path, "distance_metrics.json")) as f:
+        with open(os.path.join(model_path, "summary_metrics.json")) as f:
             data = json.load(f)
             data["config"] = model_path
             data["model_type"] = model
@@ -113,7 +113,7 @@ for k, er in enumerate(event_rate):
 fig2.tight_layout(pad=3, h_pad=0.1)
 fig2.supxlabel('Time Index', fontsize=axislabelfont1)
 fig2.supylabel('Amplitude', fontsize=axislabelfont1)
-fig2.savefig(os.path.join(plot_path, 'sn_examples.png'))
+fig2.savefig(os.path.join(plot_path, 'sn_examples.eps'))
 
 #%%
 
@@ -155,7 +155,7 @@ if separate_SNOE_SNGE_plots:
                               capprops=dict(color="black"), whiskerprops=dict(color="black"))
         axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
                       loc='upper left', fontsize=14)
-        axs[1].set_xlabel(r"True $\nu$", fontsize=14)
+        axs[1].set_xlabel(r"Target $\nu$", fontsize=14)
         axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
         axs[1].grid(True)
         axs[1].xaxis.set_ticks_position('none')
@@ -164,9 +164,9 @@ if separate_SNOE_SNGE_plots:
         axs[1].tick_params(axis='y', which='major', labelsize=11)
         axs[1].set_ylim((0,5))
 
-        axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+        axs[0].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s",
                     color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-        axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+        axs[0].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o",
                     color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN")
         axs[0].set_ylim((0, 2.3))
         axs[0].set_title(noise_title, fontsize=14)
@@ -178,7 +178,7 @@ if separate_SNOE_SNGE_plots:
         axs[0].legend(fontsize=14)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_path, 'SNOE_combined_plot.png'), dpi=600)
+    plt.savefig(os.path.join(plot_path, 'SNOE_combined_plot.eps'), dpi=300)
     plt.show()
 
     fig, axs = plt.subplots(nrows=2, sharex=True)
@@ -219,7 +219,7 @@ if separate_SNOE_SNGE_plots:
                               capprops=dict(color="black"), whiskerprops=dict(color="black"))
         axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
                       loc='upper left', fontsize=14)
-        axs[1].set_xlabel(r"True $\nu$", fontsize=14)
+        axs[1].set_xlabel(r"Target $\nu$", fontsize=14)
         axs[1].set_ylabel(r"Estimated $\nu$", fontsize=14)
         axs[1].grid(True)
         axs[1].xaxis.set_ticks_position('none')
@@ -228,9 +228,9 @@ if separate_SNOE_SNGE_plots:
         axs[1].tick_params(axis='y', which='major', labelsize=11)
         axs[1].set_ylim((0,5))
 
-        axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+        axs[0].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s",
                     color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-        axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+        axs[0].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o",
                     color=c3, linestyle="-", alpha=1,linewidth=2, label="STFT-GAN")
         axs[0].set_ylim((0, 2.3))
         axs[0].set_title(noise_title, fontsize=14)
@@ -242,12 +242,12 @@ if separate_SNOE_SNGE_plots:
         axs[0].legend(fontsize=14)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_path, 'SNGE_combined_plot.png'), dpi=600)
+    plt.savefig(os.path.join(plot_path, 'SNGE_combined_plot.eps'), dpi=300)
     plt.show()
 
 #%%
 
-fig, axs = plt.subplots(nrows=2, ncols=2, sharex='col', sharey = 'row', figsize = (8,7))
+fig, axs = plt.subplots(nrows=2, ncols=2, sharex='col', figsize = (8,7))
 noise_types = ["SNOE", "SNGE"]
 noise_titles = ["One-Sided Exponential Pulse Type", "Gaussian Pulse Type"]
 parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
@@ -272,15 +272,17 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     wave_range = box_range
     stft_range = [pos + 0.2 for pos in box_range]
 
-    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+    axs[0, i].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s",
                 color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+    axs[0, i].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o",
                 color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN")
     axs[0, 0].set_ylabel("Geodesic PSD Distance", fontsize=14)
     axs[0, i].set_title(noise_title, fontsize=14)
     axs[0, i].xaxis.set_ticks_position('none')
     axs[0, i].xaxis.set_ticklabels([])
-    axs[0, i].set_ylim((0, 2.2))
+    axs[0, 0].set_ylim(0, 0.14)
+    #axs[0, 0].set_yticks([0, 0.05, 0.10, 0.15])
+    axs[0, 1].set_ylim(0, 2.2)
     axs[0, i].tick_params(axis='y', labelsize=12)
     axs[0, i].grid(True)
     axs[0, 0].legend(fontsize=14)
@@ -296,17 +298,84 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     axs[1, 0].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
                   loc='upper left', fontsize=14)
-    axs[1, i].set_xlabel(r"True $\nu$", fontsize=14)
+    axs[1, i].set_xlabel(r"Target $\nu$", fontsize=14)
     axs[1, 0].set_ylabel(r"Estimated $\nu$", fontsize=14)
     axs[1, i].grid(True)
     axs[1, i].set_xticks(box_range)
     axs[1, i].set_xticklabels(parameter_range, fontsize=12, rotation=45)
     axs[1, i].tick_params(axis='y', labelsize=12)
-    axs[1, i].set_ylim((0,5))
+    axs[1, i].set_ylim(0, 5)
 
 fig.tight_layout()
-fig.subplots_adjust(hspace=0.1, wspace=0.1)
-fig.savefig(os.path.join(plot_path, 'shot_combined_plot.png'), dpi=600)
+fig.subplots_adjust(hspace=0.1, wspace=0.2)
+fig.savefig(os.path.join(plot_path, 'shot_combined_plot.eps'), dpi=300)
+fig.show()
+
+#%%
+# density and coverage plots
+
+fig, axs = plt.subplots(nrows=2, ncols=2, sharex='col', figsize = (8,7))
+noise_types = ["SNOE", "SNGE"]
+noise_titles = ["One-Sided Exponential Pulse Type", "Gaussian Pulse Type"]
+parameter_range = [0.25, 0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 2.50, 2.75, 3.00]
+
+for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
+    model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+
+    CIs = np.array(list(wave_metrics_df["dtw_density_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_density"])
+    axs[0, i].errorbar(parameter_range, wave_metrics_df["dtw_density"], yerr_wave, marker="s",
+                color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+    CIs = np.array(list(stft_metrics_df["dtw_density_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(parameter_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_density"])
+    axs[0, i].errorbar(parameter_range, stft_metrics_df["dtw_density"], yerr_stft, marker="o",
+                color=c3, linestyle="-", linewidth=2, label="STFT-GAN", capsize = 5)
+    axs[0, 0].set_ylabel("DTW Density", fontsize=14)
+    axs[0, i].set_title(noise_title, fontsize=14)
+    axs[0, i].xaxis.set_ticks_position('none')
+    axs[0, i].xaxis.set_ticklabels([])
+    axs[0, 0].set_ylim((0, 1.75))
+    axs[0, 1].set_ylim((0, 4.1))
+    axs[0, i].tick_params(axis='y', labelsize=12)
+    axs[0, i].grid(True)
+
+    CIs = np.array(list(wave_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(parameter_range, wave_metrics_df["dtw_coverage"], yerr_wave, marker="s",
+                color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+    CIs = np.array(list(stft_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(parameter_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(parameter_range, stft_metrics_df["dtw_coverage"], yerr_stft, marker="o",
+                color=c3, linestyle="-", linewidth=2, label="STFT-GAN", capsize = 5)
+    # add legend, removing the errorbars from markers
+    handles, labels = axs[1, 1].get_legend_handles_labels()
+    handles = [h[0] for h in handles]
+    axs[1, 1].legend(handles, labels, loc='lower left', fontsize=14)
+
+    axs[1, 0].set_ylabel("DTW Coverage", fontsize=14)
+    axs[1, i].tick_params(axis='y', labelsize=12)
+    axs[1, i].grid(True)
+    axs[1, 0].set_ylim((0.39, 1.02))
+    axs[1, 1].set_ylim((0.965,1.002))
+    axs[1, 1].set_yticks([0.97, 0.98, 0.99, 1.0])
+    axs[1, i].set_xlabel(r"Target $\nu$", fontsize=14)
+    axs[1, i].set_xticks(parameter_range)
+    axs[1, i].set_xticklabels(parameter_range, fontsize=12, rotation=45)
+
+
+fig.tight_layout()
+fig.subplots_adjust(hspace=0.1, wspace=0.2)
+fig.savefig(os.path.join(plot_path, 'SNOE_SNGE_density_coverage.eps'), dpi=300)
 fig.show()
 
 
@@ -318,50 +387,56 @@ stftpath = str(path_stft[0])
 path_wave = [x for x in SNOE_wave_paths if re.search('ER100', x)]
 wavepath = str(path_wave[0])
 
-fig, axs = plt.subplots(2, figsize=(5, 7), sharex=True, gridspec_kw={'hspace': 0.05})
 h5f = h5py.File(os.path.join(stftpath, 'median_psds.h5'), 'r')
-stft_gen_median_psd = h5f['gen'][:]
-targ_median_psd = h5f['targ'][:]
+stft_gen_median_psd = h5f['gen_median_psd'][:]
+targ_median_psd = h5f['targ_median_psd'][:]
 h5f.close()
 h5f = h5py.File(os.path.join(wavepath, 'median_psds.h5'), 'r')
-wave_gen_median_psd = h5f['gen'][:]
+wave_gen_median_psd = h5f['gen_median_psd'][:]
 h5f.close()
 
+fig1, ax1 = plt.subplots(1, 1, figsize=(5,4))
 w = np.linspace(0, 0.5, len(stft_gen_median_psd))
-axs[0].plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
-axs[0].plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
-axs[0].plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=1, linewidth=2, label='STFT-GAN')
-axs[0].set_ylabel('Power Density (dB)', fontsize=14)
-axs[0].grid()
-axs[0].set_xlim(-0.005, 0.5)
-axs[0].tick_params(axis='both', which='major', labelsize=12)
-
+ax1.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
+ax1.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
+ax1.plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=1, linewidth=2, label='STFT-GAN')
+ax1.set_ylabel('Power Density (dB)', fontsize=14)
+ax1.set_xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=14)
+ax1.grid()
+ax1.set_xlim(-0.005, 0.5)
+ax1.tick_params(axis='both', which='major', labelsize=12)
+ax1.set_title('One-Sided Exponential Pulse Type', fontsize=14)
 path_stft = [x for x in SNGE_stft_paths if re.search('ER100', x)]
 stftpath = str(path_stft[0])
 path_wave = [x for x in SNGE_wave_paths if re.search('ER100', x)]
 wavepath = str(path_wave[0])
 
 h5f = h5py.File(os.path.join(stftpath, 'median_psds.h5'), 'r')
-stft_gen_median_psd = h5f['gen'][:]
-targ_median_psd = h5f['targ'][:]
+stft_gen_median_psd = h5f['gen_median_psd'][:]
+targ_median_psd = h5f['targ_median_psd'][:]
 h5f.close()
 h5f = h5py.File(os.path.join(wavepath, 'median_psds.h5'), 'r')
-wave_gen_median_psd = h5f['gen'][:]
+wave_gen_median_psd = h5f['gen_median_psd'][:]
+
 h5f.close()
+fig2, ax2 = plt.subplots(1, 1, figsize=(5,4))
+ax2.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
+ax2.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
+ax2.plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=1, linewidth=2, label='STFT-GAN')
+ax2.set_ylabel('Power Density (dB)', fontsize=14)
+ax2.set_xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=14)
+ax2.grid()
+ax2.set_xlim(-.005, 0.5)
+ax2.set_title('Gaussian Pulse Type', fontsize=14)
+ax2.tick_params(axis='both', which='major', labelsize=12)
+ax2.legend(fontsize=14)
 
-axs[1].plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
-axs[1].plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
-axs[1].plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=1, linewidth=2, label='STFT-GAN')
-axs[1].set_ylabel('Power Density (dB)', fontsize=14)
-axs[1].set_xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=14)
-axs[1].grid()
-axs[1].set_xlim(-.005, 0.5)
-axs[1].tick_params(axis='both', which='major', labelsize=12)
-axs[1].legend(fontsize=14)
-
-plt.subplots_adjust(left=0.16)
-plt.savefig(os.path.join(plot_path, "shot_noise_psd_comparison_ER100.png"), dpi=600)
-plt.show()
+fig1.tight_layout()
+fig2.tight_layout()
+fig1.savefig(os.path.join(plot_path, "SNOE_psd_comparison_ER100.eps"), dpi=300, bbox_inches='tight')
+fig1.show()
+fig2.savefig(os.path.join(plot_path, "SNGE_psd_comparison_ER100.eps"), dpi=300, bbox_inches='tight')
+fig2.show()
 
 
 #%%
@@ -372,7 +447,7 @@ stftpath = os.path.join(str(path_stft[0]), 'gen_distribution.h5')
 path_wave = [x for x in SNOE_wave_paths if re.search('ER25/', x)]
 wavepath = os.path.join(str(path_wave[0]), 'gen_distribution.h5')
 targetpath = "../Datasets/shot/shot_one_sided_exponential_exponential_fixed_ER25/test.h5"
-output_path = os.path.join(plot_path, "SNOE_waveform_comp_ER25.png")
+output_path = os.path.join(plot_path, "SNOE_waveform_comp_ER25.eps")
 h5f = h5py.File(stftpath, 'r')
 stft_gen_data = h5f['test'][:128]
 h5f = h5py.File(wavepath, 'r')
@@ -404,5 +479,5 @@ axs[0, 2].set_title("STFT-GAN", fontsize=14)
 fig.tight_layout()
 fig.subplots_adjust(hspace=0.2, wspace=0.3)
 fig.align_ylabels(axs[:,0])
-fig.savefig(output_path, dpi=600)
+fig.savefig(output_path, dpi=300)
 fig.show()

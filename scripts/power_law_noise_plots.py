@@ -10,17 +10,23 @@ import matplotlib.pyplot as plt
 import utils.fractional_noise_utils as fn
 
 separate_FGN_FBM_plots = False
+FDWN_plots = False
 plot_path = "../paper_plots/"
-FGN_parent_path = "../model_results/FGN/"
-FBM_parent_path = "../model_results/FBM/"
+FGN_parent_path = "/data/noise-gan/model_results/FGN/"
+FBM_parent_path = "/data/noise-gan/model_results/FBM/"
+FDWN_parent_path = "/data/noise-gan/model_results/FDWN/"
 FGN_dataset_paths = ["FGN_fixed_H5/", "FGN_fixed_H10/", "FGN_fixed_H20/", "FGN_fixed_H30/", "FGN_fixed_H40/", "FGN_fixed_H50/",
                      "FGN_fixed_H60/", "FGN_fixed_H70/", "FGN_fixed_H80/", "FGN_fixed_H90/", "FGN_fixed_H95/"]
 FBM_dataset_paths = ["FBM_fixed_H5/", "FBM_fixed_H10/", "FBM_fixed_H20/", "FBM_fixed_H30/", "FBM_fixed_H40/",
                      "FBM_fixed_H50/", "FBM_fixed_H60/", "FBM_fixed_H70/", "FBM_fixed_H80/", "FBM_fixed_H90/", "FBM_fixed_H95/"]
+FDWN_dataset_paths = ["FDWN_fixed_H5/", "FDWN_fixed_H10/", "FDWN_fixed_H20/", "FDWN_fixed_H30/", "FDWN_fixed_H40/",
+                     "FDWN_fixed_H50/", "FDWN_fixed_H60/", "FDWN_fixed_H70/", "FDWN_fixed_H80/", "FDWN_fixed_H90/", "FDWN_fixed_H95/"]
+
 
 if not os.path.exists(plot_path):
    os.makedirs(plot_path)
 
+# colorblind friendly plot colors
 c = ["#000000","#004949","#009292","#ff6db6","#ffb6db","#490092","#006ddb","#b66dff","#6db6ff","#b6dbff",
      "#920000","#924900","#db6d00","#24ff24","#ffff6d"]
 c1, c2, c3, c4 =  c[2], c[6], c[10], c[12]
@@ -41,6 +47,7 @@ for FGN_path in FGN_dataset_paths:
             FGN_wave_paths.append(model_path)
         else: # stftgan
             FGN_stft_paths.append(model_path)
+
 
 FBM_stft128_paths = []
 FBM_stft256_paths = []
@@ -65,10 +72,29 @@ test_set_groups = [FGN_wave_paths, FGN_stft_paths, FBM_wave_paths,
 noise_set_names = ["FGN", "FGN", "FBM", "FBM", "FBM"]
 model_types = ["wavegan", "stftgan", "wavegan", "stftgan", "stftgan2"]
 
+if FDWN_plots:
+    FDWN_stft_paths = []
+    FDWN_wave_paths = []
+    for FDWN_path in FDWN_dataset_paths:
+        path = os.path.join(FDWN_parent_path, FDWN_path)
+        rundirs = next(os.walk(path))[1]
+        for rundir in rundirs:
+            model_path = os.path.join(path, rundir)
+            with open(os.path.join(model_path, 'gan_train_config.json'), 'r') as fp:
+                train_specs_dict = json.loads(fp.read())
+            if train_specs_dict['model_specs']['wavegan'] == True:
+                FDWN_wave_paths.append(model_path)
+            else: # stftgan
+                FDWN_stft_paths.append(model_path)
+    test_set_groups = [FGN_wave_paths, FGN_stft_paths, FBM_wave_paths,
+                       FBM_stft128_paths, FBM_stft256_paths, FDWN_wave_paths, FDWN_stft_paths]
+    noise_set_names = ["FGN", "FGN", "FBM", "FBM", "FBM", "FDWN", "FDWN"]
+    model_types = ["wavegan", "stftgan", "wavegan", "stftgan", "stftgan2", "wavegan", "stftgan"]
+
 df_temp = []
 for test_set, noise_set, model in zip(test_set_groups, noise_set_names, model_types):
     for model_path in test_set:
-        with open(os.path.join(model_path, "distance_metrics.json")) as f:
+        with open(os.path.join(model_path, "summary_metrics.json")) as f:
             data = json.load(f)
             data["config"] = model_path
             data["dataset"] = "/".join(data["config"].split("/")[3:5])
@@ -124,7 +150,7 @@ if separate_FGN_FBM_plots:
                               capprops=dict(color="black"), whiskerprops=dict(color="black"))
         axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
                       loc='upper left', fontsize=12)
-    axs[1].set_xlabel(fr"True {x_label}", fontsize=14)
+    axs[1].set_xlabel(fr"Target {x_label}", fontsize=14)
     axs[1].set_ylabel(fr"Estimated {x_label}", fontsize=14)
     axs[1].grid(True)
     axs[1].xaxis.set_ticks_position('none')
@@ -132,9 +158,9 @@ if separate_FGN_FBM_plots:
     axs[1].tick_params(axis='both', which='major', labelsize=11)
     axs[1].set_ylim((0,1.05))
 
-    axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
+    axs[0].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
                 label="WaveGAN", linewidth=2)
-    axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
+    axs[0].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
                 label="STFT-GAN", linewidth=2)
     axs[0].set_ylim((0, 0.5))
     axs[0].set_title(noise_title, fontsize=14)
@@ -146,7 +172,7 @@ if separate_FGN_FBM_plots:
     axs[0].legend(loc = 'upper center', fontsize=12)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_path, 'FGN_combined_plot.png'), dpi=600)
+    plt.savefig(os.path.join(plot_path, 'FGN_combined_plot.eps'), dpi=300)
     plt.show()
 
     fig, axs = plt.subplots(nrows=2, sharex=True)
@@ -198,23 +224,93 @@ if separate_FGN_FBM_plots:
     axs[1].xaxis.set_ticklabels([])
     axs[1].set_yticks(np.arange(-0.25,2, 0.25))
     axs[1].tick_params(axis='both', which='major', labelsize=11)
-    axs[0].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
+    axs[0].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
              label="WaveGAN", linewidth=2)
-    axs[0].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
+    axs[0].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
                    label='STFT-GAN (65x65)', linewidth=2)
-    axs[0].plot(box_range, stft2_metrics_df["geodesic_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
+    axs[0].plot(box_range, stft2_metrics_df["median_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
                    label="STFT-GAN (129x65)", linewidth=2)
     axs[0].set_title("Fractional Brownian Motion", fontsize=14)
     axs[0].set_xticks(box_range)
     axs[0].set_xticklabels(parameter_range)
     axs[0].tick_params(axis='both', which='major', labelsize=11)
     axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
-    axs[1].set_xlabel("True $H$", fontsize=14)
+    axs[1].set_xlabel("Target $H$", fontsize=14)
     axs[0].grid()
     axs[0].legend(fontsize=12)
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_path, 'FBM_combined_plot.png'), dpi=600)
+    plt.savefig(os.path.join(plot_path, 'FBM_combined_plot.eps'), dpi=300)
     plt.show()
+
+#%%
+if FDWN_plots:
+    noise_types = ["FDWN"]
+    x_labels = [r"$d$"]
+    noise_titles = ["Fractionally Differenced White Noise"]
+    ranges = {"FDWN": [-0.45, -0.4 , -0.3 , -0.2 , -0.1 ,  0.  ,  0.1 ,  0.2 ,  0.3 ,
+            0.4 ,  0.45]}
+    fig, axs = plt.subplots(nrows=2, sharex=True)
+    fig.set_figheight(7)
+    fig.set_figwidth(5)
+
+    for i, (noise_type, x_label, noise_title) in enumerate(zip(noise_types, x_labels, noise_titles)):
+        parameter_range = ranges[noise_type]
+        model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+        stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+        wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+        stft_dists, target_dists, wave_dists = [], [], []
+        for _, stft_run in stft_metrics_df.iterrows():
+            f = open(os.path.join(stft_run["config"],'parameter_value_distributions.json'), "r")
+            stft_param_dists = json.loads(f.read())
+            target_dists.append(stft_param_dists["target"])
+            stft_dists.append(stft_param_dists["generated"])
+        for _, wave_run in wave_metrics_df.iterrows():
+            f = open(os.path.join(wave_run["config"], 'parameter_value_distributions.json'), "r")
+            wave_param_dists = json.loads(f.read())
+            wave_dists.append(wave_param_dists["generated"])
+
+
+        box_range = list(range(len(stft_dists)))
+        target_range = [pos - 0.2 for pos in box_range]
+        wave_range = box_range
+        stft_range = [pos + 0.2 for pos in box_range]
+
+        box1 = axs[1].boxplot(wave_dists, showfliers=False, positions=wave_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c2, color=c2, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box2 = axs[1].boxplot(stft_dists, showfliers=False, positions=stft_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c3, color=c3, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        box3 = axs[1].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
+                              boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
+                              capprops=dict(color="black"), whiskerprops=dict(color="black"))
+        axs[1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
+                      loc='upper left', fontsize=12)
+    axs[1].set_xlabel(fr"Target {x_label}", fontsize=14)
+    axs[1].set_ylabel(fr"Estimated {x_label}", fontsize=14)
+    axs[1].grid(True)
+    axs[1].xaxis.set_ticks_position('none')
+    axs[1].xaxis.set_ticklabels([])
+    axs[1].tick_params(axis='both', which='major', labelsize=11)
+    axs[1].set_ylim((-0.55,0.55))
+
+    axs[0].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s", color=c2, linestyle="-", alpha=1,
+                label="WaveGAN", linewidth=2)
+    axs[0].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o", color=c3, linestyle="-", alpha=1,
+                label="STFT-GAN", linewidth=2)
+    axs[0].set_ylim((0, 0.3))
+    axs[0].set_title(noise_title, fontsize=14)
+    axs[0].set_xticks(box_range)
+    axs[0].set_xticklabels(parameter_range)
+    axs[0].tick_params(axis='both', which='major', labelsize=11)
+    axs[0].set_ylabel("Geodesic PSD Distance", fontsize=14)
+    axs[0].grid()
+    axs[0].legend(loc = 'upper center', fontsize=12)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_path, 'FDWN_combined_plot.eps'), dpi=300)
+    plt.show()
+
 
 #%%
 
@@ -250,9 +346,9 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     wave_range = box_range
     stft_range = [pos + 0.2 for pos in box_range]
 
-    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+    axs[0, i].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s",
                 color=c2, linestyle="-", alpha=1, linewidth=2, label="WaveGAN")
-    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+    axs[0, i].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o",
                 color=c3, linestyle="-", alpha=1, linewidth=2, label="STFT-GAN (65x65)")
     axs[0, 0].set_ylabel("Geodesic PSD Distance", fontsize=14)
     axs[0, i].set_title(noise_title, fontsize=14)
@@ -272,9 +368,11 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     box3 = axs[1, i].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
                           boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
+
+
     if noise_type == 'FBM':
         stft2_range = [pos + 0.3 for pos in box_range]
-        axs[0, 1].plot(box_range, stft2_metrics_df["geodesic_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
+        axs[0, 1].plot(box_range, stft2_metrics_df["median_psd_dist"], marker="^", color=c4, linestyle="-", alpha=1,
                        label="STFT-GAN (129x65)", linewidth=2)
         box4 = axs[1, 1].boxplot(stft2_dists, showfliers=False, positions=stft2_range, widths=0.2, notch=True, patch_artist=True,
                               boxprops=dict(facecolor=c4, color=c4, alpha=1), medianprops=dict(color='black'),
@@ -286,20 +384,104 @@ for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
     #else:
     #    axs[1, 0].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
     #                     loc='upper left', fontsize=14)
-    axs[1, i].set_xlabel("True $H$", fontsize=14)
     axs[1, 0].set_ylabel("Estimated $H$", fontsize=14)
+    axs[1, i].tick_params(axis='y', labelsize=12)
     axs[1, i].grid(True)
+    axs[1, 0].set_ylim((0,1.02))
+    axs[1, 1].set_ylim((-0.3, 2))
+    axs[1, i].set_xlabel("Target $H$", fontsize=14)
     axs[1, i].set_xticks(box_range)
     axs[1, i].set_xticklabels(parameter_range, fontsize=12, rotation=45)
-    axs[1, i].tick_params(axis='y', labelsize=12)
-    axs[1, 0].set_ylim((0,1.02))
-    axs[1, 1].set_ylim((-0.25, 2))
+
+
 
 fig.tight_layout()
 fig.subplots_adjust(hspace=0.1, wspace=0.2)
-fig.savefig(os.path.join(plot_path, 'FGN_FBM_combined_plot.png'), dpi=600)
+fig.savefig(os.path.join(plot_path, 'FGN_FBM_combined_plot.eps'), dpi=300)
 fig.show()
 
+#%%
+# density and coverage plots
+
+fig, axs = plt.subplots(nrows=2, ncols=2, sharex='col', figsize = (8,7))
+noise_types = ['FGN', 'FBM']
+noise_titles = ['Fractional Gaussian Noise', 'Fractional Brownian Motion']
+parameter_range = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+
+for i, (noise_type, noise_title) in enumerate(zip(noise_types, noise_titles)):
+    model_metrics_df = metrics_df[metrics_df["noise_type"] == noise_type]
+    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan"]
+    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "wavegan"]
+
+    CIs = np.array(list(wave_metrics_df["dtw_density_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_density"])
+    axs[0, i].errorbar(box_range, wave_metrics_df["dtw_density"], yerr_wave, marker="s",
+                color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+    CIs = np.array(list(stft_metrics_df["dtw_density_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(parameter_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_density"])
+    axs[0, i].errorbar(box_range, stft_metrics_df["dtw_density"], yerr_stft, marker="o",
+                color=c3, linestyle="-", linewidth=2, label="STFT-GAN (65x65)", capsize = 5)
+    axs[0, 0].set_ylabel("DTW Density", fontsize=14)
+    axs[0, i].set_title(noise_title, fontsize=14)
+    axs[0, i].xaxis.set_ticks_position('none')
+    axs[0, i].xaxis.set_ticklabels([])
+    axs[0, 0].set_ylim(-0.02, 2.25)
+    axs[0, 1].set_ylim(-0.02, 2.25)
+    axs[0, i].tick_params(axis='y', labelsize=12)
+    axs[0, i].grid(True)
+
+    CIs = np.array(list(wave_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(box_range, wave_metrics_df["dtw_coverage"], yerr_wave, marker="s",
+                color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+    CIs = np.array(list(stft_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(parameter_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(box_range, stft_metrics_df["dtw_coverage"], yerr_stft, marker="o",
+                color=c3, linestyle="-", linewidth=2, label="STFT-GAN (65x65)", capsize = 5)
+
+    if noise_type == 'FBM':
+        stft2_metrics_df = model_metrics_df[model_metrics_df["model_type"] == "stftgan2"]
+        CIs = np.array(list(stft2_metrics_df["dtw_density_95perc_CI"]))
+        yerr_stft2 = np.zeros((2, len(parameter_range)))
+        yerr_stft2[0, :] = np.array(stft2_metrics_df["dtw_density"]) - CIs[:,0]
+        yerr_stft2[1, :] = CIs[:, 1] - np.array(stft2_metrics_df["dtw_density"])
+        axs[0, 1].errorbar(box_range, stft2_metrics_df["dtw_density"], yerr_stft2, marker="^", color=c4, linestyle="-",
+                       label="STFT-GAN (129x65)", linewidth=2, capsize = 5)
+        CIs = np.array(list(stft2_metrics_df["dtw_coverage_95perc_CI"]))
+        yerr_stft2 = np.zeros((2, len(parameter_range)))
+        yerr_stft2[0, :] = np.array(stft2_metrics_df["dtw_coverage"]) - CIs[:,0]
+        yerr_stft2[1, :] = CIs[:, 1] - np.array(stft2_metrics_df["dtw_coverage"])
+        axs[1, 1].errorbar(box_range, stft2_metrics_df["dtw_coverage"], yerr_stft2, marker="^", color=c4, linestyle="-",
+                       label="STFT-GAN (129x65)", linewidth=2, capsize = 5)
+        # remove the errorbars from legend
+        handles, labels = axs[0, 1].get_legend_handles_labels()
+        handles = [h[0] for h in handles]
+        axs[0, 1].legend(handles, labels, loc='lower left', fontsize=11)
+
+
+    axs[1, 0].set_ylabel("DTW Coverage", fontsize=14)
+    axs[1, i].tick_params(axis='y', labelsize=12)
+    axs[1, i].grid(True)
+    axs[1, 0].set_ylim((-0.01,1.02))
+    axs[1, 1].set_ylim((0.48,1.02))
+    axs[1, i].set_xlabel("Target $H$", fontsize=14)
+    axs[1, i].set_xticks(box_range)
+    axs[1, i].set_xticklabels(parameter_range, fontsize=12, rotation=45)
+
+
+
+fig.tight_layout()
+fig.subplots_adjust(hspace=0.1, wspace=0.2)
+fig.savefig(os.path.join(plot_path, 'FGN_FBM_density_coverage.eps'), dpi=300)
+fig.show()
 
 
 
@@ -329,7 +511,7 @@ for k, H in enumerate(Hurst_index):
 fig.tight_layout(pad=3, h_pad=0.1)
 fig.supxlabel('Time Index', fontsize=axislabelfont1)
 fig.supylabel('Amplitude', fontsize=axislabelfont1)
-fig.savefig(os.path.join(plot_path, 'fbm_examples.png'), dpi=300)
+fig.savefig(os.path.join(plot_path, 'fbm_examples.eps'), dpi=300)
 
 #%%
 # compare PSDs of target and generated FBM noise with H=0.9
@@ -341,16 +523,16 @@ stft256path = str(path_stft256[0])
 path_wave = [x for x in FBM_wave_paths if re.search('H90', x)]
 wavepath = str(path_wave[0])
 
-fig, ax = plt.subplots(1, figsize=(6, 4))
+fig, ax = plt.subplots(1, figsize=(5, 4))
 h5f = h5py.File(os.path.join(stft128path, 'median_psds.h5'), 'r')
-stft128_gen_median_psd = h5f['gen'][:]
-targ_median_psd = h5f['targ'][:]
+stft128_gen_median_psd = h5f['gen_median_psd'][:]
+targ_median_psd = h5f['targ_median_psd'][:]
 h5f.close()
 h5f = h5py.File(os.path.join(stft256path, 'median_psds.h5'), 'r')
-stft256_gen_median_psd = h5f['gen'][:]
+stft256_gen_median_psd = h5f['gen_median_psd'][:]
 h5f.close()
 h5f = h5py.File(os.path.join(wavepath, 'median_psds.h5'), 'r')
-wave_gen_median_psd = h5f['gen'][:]
+wave_gen_median_psd = h5f['gen_median_psd'][:]
 h5f.close()
 
 w = np.linspace(0, 0.5, len(stft128_gen_median_psd))
@@ -358,14 +540,15 @@ ax.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label
 ax.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
 ax.plot(w, 10 * np.log10(stft128_gen_median_psd), color=c3, alpha=1, linewidth=2, label=r'STFT-GAN (65 $\times$ 65)')
 ax.plot(w, 10 * np.log10(stft256_gen_median_psd), color=c4, alpha=1, linewidth=2, label=r'STFT-GAN (129 $\times$ 65)')
-ax.set_ylim([-20, 60])
+ax.set_ylim(-20, 60)
+ax.set_xlim(0, 0.5)
 ax.set_ylabel('Power Density (dB)', fontsize=14)
 ax.set_xlabel("Normalized Digital Frequency (cycles/sample)", fontsize=14)
 ax.tick_params(axis='both', which='major', labelsize=12)
 ax.grid()
-fig.tight_layout(pad=1)
+fig.tight_layout()
 ax.legend(fontsize=14)
-fig.savefig(os.path.join(plot_path, "FBM_H90_psd_comparison.png"), dpi=600)
+fig.savefig(os.path.join(plot_path, "FBM_H90_psd_comparison.eps"), dpi=300)
 fig.show()
 
 #%%
@@ -409,6 +592,6 @@ axs[0, 2].set_title("STFT-GAN", fontsize=14)
 fig.tight_layout()
 #fig.subplots_adjust(hspace=0.2, wspace=0.2)
 fig.align_ylabels(axs[:,0])
-output_path = os.path.join(plot_path, "FBM_waveform_comp_H50.png")
-plt.savefig(output_path, dpi=600)
+output_path = os.path.join(plot_path, "FBM_waveform_comp_H50.eps")
+plt.savefig(output_path, dpi=300)
 plt.show()

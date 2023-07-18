@@ -10,9 +10,9 @@ import h5py
 import scipy
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 from spectrum import pmtm
 import utils.shot_noise_utils as sn
-from matplotlib import pyplot as plt
 import utils.fractional_noise_utils as fn
 from utils.alpha_stable_noise_utils import estimate_alpha_fast, estimate_scale_fast
 from utils.bg_noise_utils import estimate_bg_parameters
@@ -69,7 +69,7 @@ def evaluate_bp_noise(gen_data, gen_labels, targ_data, targ_labels, save_path):
     plt.clf()
 
 
-def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
+def evaluate_fn(targ_data, gen_data, noise_type, output_path):
     """
     Evaluate bandpass fractional (power law) noise dataset.
 
@@ -82,7 +82,7 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
     noise_type : string
         Fractional noise type. Options: 'FGN', 'FBM', 'FDWN'
     output_path : string, optional
-        Directory to save results.  The default is None.
+        Directory to save results.
 
     Returns
     -------
@@ -97,8 +97,6 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
     """
     targ_H_estimates, gen_H_estimates = [], []
     for i in range(len(targ_data)):
-        if i % (len(targ_data) // 20) == 0:
-            print(i, end=", ")
         targ_sample, gen_sample = targ_data[i, :], gen_data[i, :]
         if noise_type == 'FBM' or noise_type == 'FGN':
             targ_H_est = fn.estimate_Hurst_exponent(targ_sample, noise_type)
@@ -111,7 +109,6 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
             gen_dfrac, _ = fn.estimate_FD_param(gen_sample)
             targ_H_estimates.append(targ_dfrac)
             gen_H_estimates.append(gen_dfrac)
-    print()
     param_dists = {"target": targ_H_estimates, "generated": gen_H_estimates}
     with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
@@ -131,7 +128,7 @@ def evaluate_fn(targ_data, gen_data, noise_type, output_path=None):
     with open(os.path.join(output_path, 'parameter_value_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
-    # Get Hurst Earth Movers distance:
+    # Get wasserstein istance between target and generated Hurst index distributions
     hurst_wass_dist = scipy.stats.wasserstein_distance(targ_H_estimates, gen_H_estimates)
     return targ_H_estimates, gen_H_estimates, hurst_wass_dist
 
@@ -310,7 +307,6 @@ def evaluate_bgn(targ_data, gen_data, param_value, output_path):
     return targ_prob_median, gen_prob_median, targ_amp_ratio_median, gen_amp_ratio_median, \
            impulse_prob_dist, amp_ratio_dist
 
-
 def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     """
     Evaluate symmetric alpha stable (SAS) noise dataset
@@ -331,13 +327,13 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     targ_alpha_median : array
         Median estimated characteric exponent for target data.
     gen_alpha_median : array
-        Median estimatd characteristic exponent for generated data.
+        Median estimated characteristic exponent for generated data.
     alpha_dist : float
         Wasserstein distance between target and generated distributions
         of estimated characteristic exponent.
 
     """
-    print("Estimate Alpha Values: ")
+    print("Evaluating generated SAS noise")
     targ_alpha_ests, gen_alpha_ests = [], []
     targ_gamma_ests, gen_gamma_ests = [], []
     i = 0
@@ -360,7 +356,6 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
         json.dump(param_dists, f)
 
     param_dists = {"target": targ_gamma_ests, "generated": gen_gamma_ests}
-    print("save Gamma estimates")
     with open(os.path.join(output_path, 'parameter_scale_distributions.json'), 'w') as f:
         json.dump(param_dists, f)
 
@@ -379,11 +374,10 @@ def evaluate_sas_noise(targ_data, gen_data, param_value, output_path):
     plt.clf()
     return targ_alpha_median, gen_alpha_median, alpha_dist
 
-
-def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path):
+def eval_psd_distances(targ_data, gen_data, output_path):
     """
-    Estimate median estimated power spectral densities (PSDs)
-    of target and generated distributions and geodesic PSD distance.
+    Estimate median power spectral densities (PSDs) of target and generated
+    distributions and geodesic PSD distance.
 
     Parameters
     ----------
@@ -391,17 +385,12 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
         Target data.
     gen_data : ndarray
         Generated data.
-    param_value : float
-        Target noise parameter value.
-    noise_type : string
-        String specifying noise type.
-        Options: 'bandpass', 'shot', 'BG', 'SAS', 'FGN','FBM', or 'FDWN'
     output_path : string
         Directory to save results.
 
     Returns
     -------
-    psd_dist : float
+    median_psd_dist : float
         Estimated geodesic distance between median estimated PSDs for target and generated data.
     """
 
@@ -411,7 +400,6 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
         Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
         Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd
         targ_PSD_estimates.append(Pxx)
-
         Sk, weights, _eigenvalues = pmtm(gen_sample, NW=4, k=7, method='eigen')
         Pxx = np.abs(np.mean(Sk * weights, axis=0)) ** 2
         Pxx = Pxx[0: (len(Pxx) // 2)]  # one-sided psd
@@ -419,36 +407,37 @@ def eval_psd_distances(targ_data, gen_data, param_value, noise_type, output_path
 
     targ_median_psd = np.median(np.array(targ_PSD_estimates), axis=0)
     gen_median_psd = np.median(np.array(gen_PSD_estimates), axis=0)
+    targ_max_psd = np.amax(np.array(targ_PSD_estimates), axis=0)
+    gen_max_psd = np.amax(np.array(gen_PSD_estimates), axis=0)
+    targ_min_psd = np.amin(np.array(targ_PSD_estimates), axis=0)
+    gen_min_psd = np.amin(np.array(gen_PSD_estimates), axis=0)
 
-    h5f = h5py.File(f"{output_path}/median_psds.h5", "w")
-    h5f.create_dataset('gen', data=gen_median_psd)
-    h5f.create_dataset('targ', data=targ_median_psd)
+    h5f = h5py.File(os.path.join(output_path,'median_psds.h5'), "w")
+    h5f.create_dataset('gen_median_psd', data=gen_median_psd)
+    h5f.create_dataset('targ_median_psd', data=targ_median_psd)
+    h5f.create_dataset('gen_max_psd', data=gen_max_psd)
+    h5f.create_dataset('targ_max_psd', data=targ_max_psd)
+    h5f.create_dataset('gen_min_psd', data=gen_min_psd)
+    h5f.create_dataset('targ_min_psd', data=targ_min_psd)
     h5f.close()
     w = np.linspace(0, 0.5, len(gen_median_psd))
     plt.plot(w, 10 * np.log10(targ_median_psd), color='blue', alpha=0.75, label='Target')
     plt.plot(w, 10 * np.log10(gen_median_psd), color='green', alpha=0.75, label='Generated')
-    title_str = {"BGN_quant": "Impulse Probability",
-                 "BG": "Impulse Probability",
-                 "bandpass": None,
-                 "FBM": "Hurst Index",
-                 "FDWN": "Hurst Index",
-                 "FGN": "Hurst Index",
-                 "SAS": "Alpha Value",
-                 "shot": "Event Rate"}[noise_type]
-    if title_str is not None:
-        plt.title(f"{title_str}: {str(param_value)}")
     plt.ylabel('Power Density (dB)')
     plt.xlabel("Normalized Digital Frequency (cycles/sample)")
     plt.grid()
     plt.margins(x=0)
     plt.legend()
     if output_path is not None:
-        plt.savefig(os.path.join(output_path, "psd_comparison.png"), dpi=300)
+        plt.savefig(os.path.join(output_path, "median_psd_comparison.png"), dpi=300)
     plt.clf()
 
-    # get PSD distance estimate
+    # calculate PSD distance estimates
     step_size = 0.5 / len(gen_median_psd)
-    log_psd_ratio = np.log(gen_median_psd) - np.log(targ_median_psd)
-    psd_dist = np.sqrt(np.sum(log_psd_ratio ** 2 * step_size / 0.5) - np.sum(log_psd_ratio * step_size / 0.5) ** 2)
-    return psd_dist
+    # distance between median psds
+    log_med_psd_ratio = np.log(gen_median_psd) - np.log(targ_median_psd)
+    median_psd_dist = np.sqrt(np.sum(log_med_psd_ratio ** 2 * step_size / 0.5)
+                              - np.sum(log_med_psd_ratio * step_size / 0.5) ** 2)
+
+    return median_psd_dist
 

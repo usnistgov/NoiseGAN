@@ -276,6 +276,6 @@ def gan_train(rank, specs=None, output_path=None):
         if specs["eval_model"]:
             print("begin GAN generator evaluation")
             try:
-                gan_evaluation.test_gan(G_net.eval(), train_hist_df, output_path, device, specs)
+                gan_evaluation.test_gan( output_path, specs, G_net.eval(), train_hist_df, device)
             except Exception as e:
                 print(e)

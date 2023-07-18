@@ -16,8 +16,9 @@ from scipy import signal
 from scipy import stats
 from contextlib import contextmanager
 from numpy.random import default_rng
-"""
+
 # uncomment to run FDWN utils
+"""
 from rpy2.robjects.packages import importr
 from rpy2 import rinterface as ri
 from rpy2 import robjects
@@ -25,12 +26,11 @@ from rpy2 import robjects
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 import logging
 rpy2_logger.setLevel(logging.ERROR)
-
 ri.initr()  # initialize low-level R interface
 arfima = importr('arfima')  # import arfima package from R
 """
-rng = default_rng()  # random number generator object
 
+rng = default_rng()  # random number generator object
 
 def simulate_FGN(signal_length, H, sigma_sq=1):
     """

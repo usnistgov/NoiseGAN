@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sys
 sys.path.insert(0,'../')
 import utils.bg_noise_utils as bg
@@ -13,7 +14,7 @@ plot_path = '../paper_plots/'
 if not os.path.exists(plot_path):
    os.makedirs(plot_path)
 
-BG_parent_path = "../model_results/BG/"
+BG_parent_path = "/data/noise-gan/model_results/BG/"
 
 BG_dataset_paths = ["BG_fixed_IP1/", "BG_fixed_IP5/", "BG_fixed_IP10/", "BG_fixed_IP15/",
                      "BG_fixed_IP20/", "BG_fixed_IP30/", "BG_fixed_IP40/", "BG_fixed_IP50/",
@@ -28,7 +29,7 @@ c1, c2, c3, c4 =  c[2], c[6], c[10], c[12]
 BG_stft_fs_paths = [] # feature_min_max scaling
 BG_wave_fs_paths = [] # feature_min_max scaling
 BG_stft_gs_paths = [] # global_min_max scaling
-BG_wave_gs_paths = [] # feature_min_max scaling
+BG_wave_gs_paths = [] # global_min_max scaling
 BG_stft_qt_paths = [] # quantile transform scaling
 BG_wave_qt_paths = [] # quantile transform scaling
 for BG_path in BG_dataset_paths:
@@ -65,7 +66,7 @@ model_types = ["wavegan", "stftgan", "wavegan_gs", "stftgan_gs", "wavegan_qt", "
 df_temp = []
 for test_set, noise_set, model in zip(test_set_groups, noise_set_names, model_types):
     for model_path in test_set:
-        with open(os.path.join(model_path, "distance_metrics.json")) as f:
+        with open(os.path.join(model_path, "summary_metrics.json")) as f:
             data = json.load(f)
             data["config"] = model_path
             data["model_type"] = model
@@ -95,9 +96,9 @@ for i, (suffix, noise_title) in enumerate(zip(["", "_qt"], noise_titles)):
     target_range = [pos - 0.2 for pos in box_range]
     stft_range = [pos + 0.2 for pos in box_range]
 
-    axs[0, i].plot(box_range, wave_metrics_df["geodesic_psd_dist"], marker="s",
+    axs[0, i].plot(box_range, wave_metrics_df["median_psd_dist"], marker="s",
                    color=c2, linestyle="-", alpha=1, label="WaveGAN", linewidth=2)
-    axs[0, i].plot(box_range, stft_metrics_df["geodesic_psd_dist"], marker="o",
+    axs[0, i].plot(box_range, stft_metrics_df["median_psd_dist"], marker="o",
                    color=c3, linestyle="-", alpha=1, label="STFT-GAN", linewidth=2)
     axs[0, i].set_ylim((0, 0.5))
     axs[0, 0].set_ylabel("Geodesic PSD Distance", fontsize=14)
@@ -129,10 +130,9 @@ for i, (suffix, noise_title) in enumerate(zip(["", "_qt"], noise_titles)):
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
     axs[1, 0].set_ylabel(r"Estimated $p$", fontsize=14)
     axs[1, i].grid(True)
+    axs[1, i].set_ylim(-0.05, 1.0)
     axs[1, i].xaxis.set_ticks_position('none')
     axs[1, i].xaxis.set_ticklabels([])
-    axs[1, 1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
-                  loc='lower right', fontsize=12)
 
     stft_dists, target_dists, wave_dists = [], [], []
     for _, stft_run in stft_metrics_df.iterrows():
@@ -153,20 +153,119 @@ for i, (suffix, noise_title) in enumerate(zip(["", "_qt"], noise_titles)):
     box3 = axs[2, i].boxplot(target_dists, showfliers=False, positions=target_range, widths=0.2, notch=True, patch_artist=True,
                           boxprops=dict(facecolor=c1, color=c1, alpha=1), medianprops=dict(color='black'),
                           capprops=dict(color="black"), whiskerprops=dict(color="black"))
-    #axs[2, 1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
-    #              loc='upper right', fontsize=12)
+    axs[2, 1].legend([box3["boxes"][0], box1["boxes"][0], box2["boxes"][0]], ['Target', 'WaveGAN', 'STFT-GAN'],
+                  loc='upper center', fontsize=12)
+
     axs[2, 0].set_ylabel(r"Estimated $\theta$", fontsize=14)
-    axs[2, i].set_xlabel(r"True $p$", fontsize=14)
+    axs[2, i].set_xlabel(r"Target $p$", fontsize=14)
     axs[2, i].set_xticks(box_range)
     axs[2, i].set_xticklabels(noise_range, fontsize=11, rotation=45)
+    axs[2, 0].set_ylim(0, 14)
+    axs[2, 1].set_ylim(0, 20)
     axs[0, i].tick_params(axis='y', labelsize=11)
     axs[1, i].tick_params(axis='y', labelsize=11)
     axs[2, i].tick_params(axis='y', labelsize=11)
     axs[2, i].grid(True)
 plt.tight_layout()
-plt.subplots_adjust(hspace=0.05, wspace=0.15)
-plt.savefig(os.path.join(plot_path, 'BGN_combined_plot.png'), dpi=600)
+plt.subplots_adjust(hspace=0.1, wspace=0.2)
+plt.savefig(os.path.join(plot_path, 'BGN_combined_plot.eps'), dpi=300)
 plt.show()
+
+#%%
+# density and coverage plots
+
+fig, axs = plt.subplots(nrows=2, ncols=2, sharex='col', figsize = (8,7))
+noise_titles = ['Feature Min-Max Data Scaling', 'Quantile Data Transformation']
+parameter_range = [0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+for i, (suffix, noise_title) in enumerate(zip(["", "_qt"], noise_titles)):
+    model_metrics_df = metrics_df[metrics_df["noise_type"] == "BGN"]
+    stft_metrics_df = model_metrics_df[model_metrics_df["model_type"] == f"stftgan{suffix}"]
+    wave_metrics_df = model_metrics_df[model_metrics_df["model_type"] == f"wavegan{suffix}"]
+    CIs = np.array(list(wave_metrics_df["dtw_density_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_density"])
+    CIs = np.array(list(stft_metrics_df["dtw_density_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(parameter_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_density"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_density"])
+    if i==0:
+        axs[0, 0].errorbar(box_range, wave_metrics_df["dtw_density"], yerr_wave, marker="s",
+                             color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+        axs[0, 0].errorbar(box_range, stft_metrics_df["dtw_density"], yerr_stft, marker="o",
+                           color=c3, linestyle="-", linewidth=2, label="STFT-GAN", capsize = 5)
+        axs[0, 0].set_ylabel("DTW Density", fontsize=14)
+        axs[0, 0].set_title(noise_title, fontsize=14)
+        axs[0, 0].xaxis.set_ticks_position('none')
+        axs[0, 0].xaxis.set_ticklabels([])
+        axs[0, 0].tick_params(axis='y', labelsize=12)
+        axs[0, 0].grid(True)
+        # add legend, removing the errorbars from markers
+        handles, labels = axs[0, 0].get_legend_handles_labels()
+        handles = [h[0] for h in handles]
+        axs[0, 0].legend(handles, labels, loc='upper left', fontsize=14)
+    elif i==1:
+        # use broken y-axis for density plot
+        ax = axs[0, 1]
+        divider = make_axes_locatable(ax)
+        ax2 = divider.new_vertical(size="100%", pad=0.15)
+        fig.add_axes(ax2)
+        ax.errorbar(box_range, stft_metrics_df["dtw_density"], yerr_stft, marker="o",
+                       color=c3, linestyle="-", linewidth=2, label="STFT-GAN", capsize = 5)
+        ax.set_ylim(-0.1, 2)
+        ax.spines['top'].set_visible(False)
+        ax.grid(True)
+        ax.xaxis.set_ticks_position('none')
+        ax.xaxis.set_ticklabels([])
+        ax.tick_params(axis='y', labelsize=12)
+        ax2.errorbar(box_range, wave_metrics_df["dtw_density"], yerr_wave, marker="s",
+                            color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+        ax2.set_ylim(8, 42)
+        ax2.set_xticks(box_range)
+        ax2.tick_params(bottom=False, labelbottom=False)
+        ax2.spines['bottom'].set_visible(False)
+        ax2.set_title(noise_title, fontsize=14)
+        ax2.grid(True, 'both')
+        ax2.tick_params(axis='y', labelsize=12)
+        ax2.set_yticks([10, 20, 30, 40])
+
+        # From https://matplotlib.org/examples/pylab_examples/broken_axis.html
+        # make the diagonal lines for broken axis
+        d = .015  # make the diagonal lines for broken axis
+        kwargs = dict(transform=ax2.transAxes, color='k', clip_on=False)
+        ax2.plot((-d, +d), (-d, +d), **kwargs)        # top-left diagonal
+        ax2.plot((1 - d, 1 + d), (-d, +d), **kwargs)  # top-right diagonal
+        kwargs.update(transform=ax.transAxes)  # switch to the bottom axes
+        ax.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # bottom-left diagonal
+        ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # bottom-right diagonal
+
+    CIs = np.array(list(wave_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_wave = np.zeros((2, len(parameter_range)))
+    yerr_wave[0, :] = np.array(wave_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_wave[1, :] = CIs[:, 1] - np.array(wave_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(box_range, wave_metrics_df["dtw_coverage"], yerr_wave, marker="s",
+                color=c2, linestyle="-", linewidth=2, label="WaveGAN", capsize = 5)
+    CIs = np.array(list(stft_metrics_df["dtw_coverage_95perc_CI"]))
+    yerr_stft = np.zeros((2, len(box_range)))
+    yerr_stft[0, :] = np.array(stft_metrics_df["dtw_coverage"]) - CIs[:,0]
+    yerr_stft[1, :] = CIs[:, 1] - np.array(stft_metrics_df["dtw_coverage"])
+    axs[1, i].errorbar(box_range, stft_metrics_df["dtw_coverage"], yerr_stft, marker="o",
+                color=c3, linestyle="-", linewidth=2, label="STFT-GAN", capsize = 5)
+    axs[1, 0].set_ylabel("DTW Coverage", fontsize=14)
+    axs[1, i].tick_params(axis='y', labelsize=12)
+    axs[1, i].grid(True)
+    #axs[1, i].set_ylim((-0.01, 1.02))
+    axs[1, i].set_xlabel(r"Target $p$", fontsize=14)
+    axs[1, i].set_xticks(box_range)
+    axs[1, i].set_xticklabels(parameter_range, fontsize=12, rotation=45)
+
+
+fig.tight_layout()
+fig.subplots_adjust(hspace=0.1, wspace=0.2)
+fig.savefig(os.path.join(plot_path, 'BGN_density_coverage.eps'), dpi=300)
+fig.show()
+
 
 #%%
 # plot example target and generated waveforms
@@ -176,7 +275,7 @@ stftpath = os.path.join(str(path_stft[0]), 'gen_distribution.h5')
 path_wave = [x for x in BG_wave_qt_paths if re.search('IP5/', x)]
 wavepath = os.path.join(str(path_wave[0]), 'gen_distribution.h5')
 targetpath = "../Datasets/BG/BG_fixed_IP5/test.h5"
-output_path = os.path.join(plot_path, "BG_waveform_comp_IP5.png")
+output_path = os.path.join(plot_path, "BG_waveform_comp_IP5.eps")
 h5f = h5py.File(stftpath, 'r')
 stft_gen_data = h5f['test'][:128]
 h5f = h5py.File(wavepath, 'r')
@@ -208,7 +307,7 @@ axs[0, 2].set_title("STFT-GAN", fontsize=14)
 plt.tight_layout()
 plt.subplots_adjust(hspace=0.1, wspace=0.1)
 fig.align_ylabels(axs[:,0])
-plt.savefig(output_path, dpi=600)
+plt.savefig(output_path, dpi=300)
 plt.show()
 
 #%%
@@ -246,8 +345,8 @@ ax1.set_xlabel('$x$', fontsize=axislabelfont2)
 ax1.set_ylabel('Probability Density', fontsize=axislabelfont2)
 ax1.tick_params(labelsize=ticklabelfont2)
 fig3.tight_layout(pad=1)
-fig3.savefig(os.path.join(plot_path, 'bg_pdfs.png'))
+fig3.savefig(os.path.join(plot_path, 'bg_pdfs.eps'), dpi=300)
 fig4.tight_layout(pad=3, h_pad=0.1)
 fig4.supxlabel('Time Index', fontsize=axislabelfont1)
 fig4.supylabel('Amplitude', fontsize=axislabelfont1)
-fig4.savefig(os.path.join(plot_path,'bg_examples.png'))
+fig4.savefig(os.path.join(plot_path,'bg_examples.eps'), dpi=300)
