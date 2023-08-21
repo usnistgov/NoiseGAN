@@ -395,7 +395,7 @@ h5f = h5py.File(os.path.join(wavepath, 'median_psds.h5'), 'r')
 wave_gen_median_psd = h5f['gen_median_psd'][:]
 h5f.close()
 
-fig1, ax1 = plt.subplots(1, 1, figsize=(5,4))
+fig1, ax1 = plt.subplots(1, 1, figsize=(5.1,4))
 w = np.linspace(0, 0.5, len(stft_gen_median_psd))
 ax1.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
 ax1.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
@@ -417,9 +417,9 @@ targ_median_psd = h5f['targ_median_psd'][:]
 h5f.close()
 h5f = h5py.File(os.path.join(wavepath, 'median_psds.h5'), 'r')
 wave_gen_median_psd = h5f['gen_median_psd'][:]
-
 h5f.close()
-fig2, ax2 = plt.subplots(1, 1, figsize=(5,4))
+
+fig2, ax2 = plt.subplots(1, 1, figsize=(5.1,4))
 ax2.plot(w, 10 * np.log10(targ_median_psd), color=c1, alpha=1, linewidth=2, label='Target')
 ax2.plot(w, 10 * np.log10(wave_gen_median_psd), color=c2, alpha=1, linewidth=2, label='WaveGAN')
 ax2.plot(w, 10 * np.log10(stft_gen_median_psd), color=c3, alpha=1, linewidth=2, label='STFT-GAN')

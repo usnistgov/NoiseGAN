@@ -12,7 +12,7 @@ from numpy.random import default_rng
 from spectrum import pmtm
 from sklearn.mixture import GaussianMixture
 from scipy import stats
-rng = default_rng()
+rng = np.random.default_rng() # initialize new instance of random number generator
 
 def simulate_bg_noise(signal_length, p, sig_w, sig_i):
     """

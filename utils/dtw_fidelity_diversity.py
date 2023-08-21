@@ -17,7 +17,7 @@ from dtaidistance import dtw
 from multiprocessing import Process, Queue
 from scipy import stats
 
-def get_dtw_distance_matrices(model_path, targ_data, gen_data, window_size=32):
+def get_dtw_distance_matrices(model_path, targ_data, gen_data, window_size=32, recompute = False):
     '''
     Parameters
     ----------
@@ -30,6 +30,9 @@ def get_dtw_distance_matrices(model_path, targ_data, gen_data, window_size=32):
     window_size : int, optional
         Window size for dynamic time warping (DTW) calculations.
         The default is 32.
+    recompute : bool
+        Flag to require recalculation of DTW distance matrices.
+        The default is False.
 
     Returns
     -------
@@ -49,7 +52,7 @@ def get_dtw_distance_matrices(model_path, targ_data, gen_data, window_size=32):
     else:
         window_size_old = None
 
-    if window_size != window_size_old:
+    if window_size != window_size_old or recompute:
         # dtw with the desired window size is not precomputed
         # need to calculate distance matrices
         print('Estimating DTW distances ...')

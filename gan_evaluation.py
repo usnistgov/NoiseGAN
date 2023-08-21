@@ -11,7 +11,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import utils.noise_evaluation as evalnoise
-import utils.dtw_psd_fidelity_diversity as fd
+import utils.dtw_fidelity_diversity as fd
 
 
 class MyEncoder(json.JSONEncoder):
