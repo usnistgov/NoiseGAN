@@ -10,7 +10,7 @@ modeling of noise time series.  Specifically, it includes Pytorch implementation
  - impulsive noise, including Bernoulli-Gaussian (BG) and symmetric alpha stable (SAS) distributions
 
 ## Reference
-A. Wunderlich, J. Sklar, "Data-Driven Modeling of Noise Time Series with Convolutional Generative Adversarial Networks", Machine Learning: Science and Technology, 4(3), 2023. https://doi.org/10.1088/2632-2153/acee44
+A. Wunderlich, J. Sklar, "Data-Driven Modeling of Noise Time Series with Convolutional Generative Adversarial Networks", Machine Learning: Science and Technology, vol. 4, no. 3, 2023. https://doi.org/10.1088/2632-2153/acee44
 
 ## Getting Started
 The software enables automated testing of many model configurations across
